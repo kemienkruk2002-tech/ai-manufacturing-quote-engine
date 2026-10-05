@@ -16,6 +16,8 @@ public sealed record CalculationWrite(StoredSnapshot Snapshot, QuoteSnapshotPayl
     string CalculationHash, TimeCalculationResult TimeResult, StockCalculationResult StockResult,
     CostCalculationResult? CostResult, string ResultJson, string CorrelationId,
     DateTimeOffset StartedAt, DateTimeOffset FinishedAt, decimal DurationMs);
+public sealed record QuoteRequestFilter(QuoteStatus? Status = null, Guid? CustomerId = null,
+    DateOnly? DueFrom = null, DateOnly? DueTo = null);
 
 public interface ICustomerRepository
 {
@@ -26,6 +28,13 @@ public interface ICustomerRepository
     Task<CustomerContact?> FindContactAsync(Guid tenantId, Guid contactId,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CustomerContact>> ListContactsAsync(Guid tenantId, Guid customerId,
+        CancellationToken cancellationToken = default);
+}
+public interface IQuoteRequestRepository
+{
+    Task<QuoteRequest> CreateAsync(QuoteRequest request, CancellationToken cancellationToken = default);
+    Task<QuoteRequest?> FindAsync(Guid tenantId, Guid quoteRequestId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<QuoteRequest>> ListAsync(Guid tenantId, QuoteRequestFilter filter,
         CancellationToken cancellationToken = default);
 }
 

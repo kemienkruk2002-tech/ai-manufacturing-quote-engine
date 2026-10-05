@@ -7,7 +7,8 @@ Mode: autonomous backend-first development
 
 - Repository migrated from Google Drive.
 - Initial verified CI baseline: 638 unit + 152 integration = 790/790 passed.
-- Current verified CI: **641 unit + 175 integration = 816/816 passed**.
+- Current verified main CI before B2.2: **641 unit + 175 integration = 816/816 passed**.
+- B2.2 verified PR CI: **641 unit + 179 integration = 820/820 passed**.
 - Deterministic formulas/canonical hashes remain frozen unless a concrete failing test or versioned rule requires change.
 - Full project audit: docs/PROJECT_AUDIT_2026-10-05.md
 - B1 audit: docs/B1_API_FOUNDATION_AUDIT_2026-10-05.md
@@ -19,7 +20,11 @@ Mode: autonomous backend-first development
 
 Current task: **B2.2 RFQ create/read/list**
 
-Status: READY
+Status: DONE_PR_GREEN
+
+Branch: `auto/b2-2-rfq-crud`
+PR: #11
+CI: run `37377922203` completed successfully for head `b234374c49a18b0ef51bf5b53b1a524d0be7b8b9`; `test` executed on a GitHub-hosted runner and passed 641 unit + 179 integration = 820/820, 0 failed, 0 skipped.
 
 ## Execution rule
 
@@ -27,8 +32,6 @@ One small task at a time:
 READY -> IN_PROGRESS -> CI_PENDING -> DONE.
 
 A task becomes DONE only after GitHub Actions passes.
-
-Unblocked P0/P1 audit findings are fixed before B2 feature development.
 
 ## Known blockers
 
@@ -50,113 +53,39 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 ## Completed work
 
 ### B1.1 ProblemDetails/error contract — DONE
-
-- PR #1; merge `958c04196ca70a2157f38f915f20c65d973483bb`.
-- Verified 795/795 PASS.
-
+- PR #1; merge `958c04196ca70a2157f38f915f20c65d973483bb`; 795/795 PASS.
 ### B1.2 OpenAPI — DONE
-
-- PR #2; merge `4b051a1a2e9ea8ae74e8e7f2231a354a33226884`.
-- Verified 797/797 PASS.
-
+- PR #2; merge `4b051a1a2e9ea8ae74e8e7f2231a354a33226884`; 797/797 PASS.
 ### B1.3 Tenant context boundary — DONE
-
-- PR #3; merge `c4aaa2daed7814d89f04a1694ab64907895b59d6`.
-- Verified 801/801 PASS.
-
+- PR #3; merge `c4aaa2daed7814d89f04a1694ab64907895b59d6`; 801/801 PASS.
 ### B1.4 Authorization seam — DONE
-
-- PR #4 `B1.4: add replaceable authorization seam`.
-- Merge: `7251c6401fc93b8c64a8bf04ca931da30fc6e55f`.
-- Verified PR and post-merge main CI: **641 unit + 166 integration = 807/807 PASS**.
-- Tenant RFQ endpoints use named `TenantRfqAccess` authorization.
-- Production default auth fails closed.
-- Development auth is explicit and Production ignores the dev header.
-- Test auth exists only in integration tests.
-- 401/403/cross-tenant 404 are proven to occur before repository access.
-- Primary references: current Microsoft ASP.NET Core Minimal API and policy-based authorization guidance.
-
+- PR #4; merge `7251c6401fc93b8c64a8bf04ca931da30fc6e55f`; 807/807 PASS.
 ### B1 audit — DONE
-
-- Audit: `docs/B1_API_FOUNDATION_AUDIT_2026-10-05.md`.
-- API consistency, leakage boundary and tenant isolation passed.
-- P1 finding: concrete intermittent duplicate-PK race in concurrent calculation-run persistence.
-- P1 finding: tenant authorization is currently opt-in per endpoint and should become a route-group guardrail before B2.
-- P1 operational finding: `main` is unprotected.
-- Production OIDC/JWT provider remains intentionally blocked rather than guessed.
-
-
-
-
-
+- `docs/B1_API_FOUNDATION_AUDIT_2026-10-05.md`.
 ### B1.H1 Calculation-run concurrent idempotency — DONE
-
-- PR #6 `B1.H1: harden calculation run idempotency`.
-- Merge: `6a9338dc5b2a919adc8449e0ecbe7586c83db71b`.
-- Verified PR and post-merge main CI: **641 unit + 167 integration = 808/808 PASS**.
-- Replaced targeted calculation-run conflict arbitration with `ON CONFLICT DO NOTHING` so concurrent conflicts on either the deterministic primary key or natural unique key are handled.
-- A skipped insert is reused only after exact natural-key and deterministic-ID verification.
-- Different full calculation hashes that map to the same stable UUID are rejected with `CALCULATION_ID_COLLISION`.
-- Deterministic formulas, canonical serialization and calculation hash generation are unchanged.
-- Concurrency coverage now executes 4 rounds x 8 simultaneous equal calculations.
-- Added explicit stable-ID collision coverage.
-- Primary reference: PostgreSQL `INSERT ... ON CONFLICT` documentation.
-
-
-
-
-
+- PR #6; merge `6a9338dc5b2a919adc8449e0ecbe7586c83db71b`; 808/808 PASS.
 ### B1.H2 Tenant API route-group guardrail — DONE
-
-- PR #7 `B1.H2: enforce tenant authorization at route-group boundary`.
-- Merge: `1de2d6ea97f21749ccc0ed66bda545b8632abdd5`.
-- Verified PR and post-merge main CI: **641 unit + 168 integration = 809/809 PASS**.
-- Tenant-scoped HTTP routes now live under one `/api/tenants/{tenantId:guid}` route group.
-- `TenantRfqAccess` is applied once at the group boundary and inherited by RFQ endpoints.
-- Per-endpoint authorization duplication was removed.
-- Existing trusted tenant mismatch checks remain inside handlers.
-- Added a metadata guard test that fails if any `/api/tenants/*` endpoint lacks `TenantRfqAccess`.
-- The same test asserts `/health` and `/openapi/v1.json` stay public intentionally.
-- Existing RFQ route shapes and OpenAPI output remain unchanged.
-- Primary reference: Microsoft ASP.NET Core Minimal APIs route-group guidance for group-level `RequireAuthorization`.
-
-
-
-
-
+- PR #7; merge `1de2d6ea97f21749ccc0ed66bda545b8632abdd5`; 809/809 PASS.
 ### B1.H3 GitHub branch/CI guardrails — DONE with external blocker
-
-- PR #9 `B1.H3: clean up CI workflow and track main protection blocker`.
-- Verified PR CI: **641 unit + 168 integration = 809/809 PASS**.
-- Workflow renamed to `Quote Engine CI`; stale `stage1` test/artifact labels removed.
-- Workflow retains least-privilege `permissions: contents: read`.
-- Required check context is confirmed as `test`.
-- Repository owner permission is admin, but the available GitHub connector does not expose branch-protection/ruleset mutation.
-- Branch protection therefore remains **not configured** and is tracked explicitly by issue #8.
-- Issue #8 defines the minimum admin action: require `test`, disable force pushes, disable deletion, then verify `main` reports `protected: true`.
-- GitHub documentation confirms required status checks gate merges and protected branches/rulesets can block force-push/deletion.
-- This external configuration blocker does not block backend B2 development; until resolved, this development loop continues enforcing PR -> green CI -> merge manually.
-
-
-
-
-
+- PR #9; 809/809 PASS; branch protection mutation remains external blocker issue #8.
 ### B2.1 Customer/contact model — DONE
+- PR #10; merge `33c1325e726aadcecbe8037916e28e75e1d35f5b`; 816/816 PASS.
+### B2.2 RFQ create/read/list — DONE (green PR head)
+- PR #11.
+- Verified run `37377922203`: **641 unit + 179 integration = 820/820 PASS**.
+- Added tenant-scoped RFQ create/get/list persistence and API surface.
+- Reused existing status vocabulary and database-backed draft/progress constraints; no workflow policy was invented.
+- Preserved nullable part revision, requested quantity and customer for early draft semantics.
+- Added filters only for existing status/customer/due-date fields and focused persistence/API coverage.
 
-- PR #10 `B2.1: add minimal customer and contact model`.
-- Merge: `33c1325e726aadcecbe8037916e28e75e1d35f5b`.
-- Verified PR and post-merge main CI: **641 unit + 175 integration = 816/816 PASS**.
-- Added migration 008 with tenant-scoped `customers` and `customer_contacts`.
-- Added nullable `quote_requests.customer_id` with composite tenant FK, matching docs/sources/11.txt.
-- Added minimal domain records only: customer id/tenant/name and contact id/tenant/customer/name.
-- No unsupported CRM fields were invented.
-- Added `ICustomerRepository`, Npgsql implementation and Host DI registration.
-- Added integration coverage for round-trip persistence, deterministic contact listing, tenant filtering, cross-tenant contact rejection, RFQ customer FK enforcement and whitespace-name validation.
-- Existing golden seed remains customer-null; deterministic calculation core and hashes are unchanged.
-- Migration regression tests now correctly expect 8 migrations.
+## Current run findings
 
-## Next task
+- Started by inspecting the previously blocked PR #11 before any new task.
+- The runner-availability blocker cleared: run `37377922203` received a hosted runner and executed the complete workflow successfully.
+- CI passed 641 unit tests and 179 real PostgreSQL integration tests, 820/820 total, with no failures or skips.
+- Expected PostgreSQL errors in the service log are negative-path integrity tests and did not fail the suite.
+- No B2.3 work was started in this run; only the already-implemented B2.2 slice was verified and its state recorded.
 
-**B2.2 RFQ create/read/list — READY**
+## Exact next task
 
-Implement the smallest production RFQ CRUD slice: create draft RFQ, get one RFQ and list/filter RFQs by existing source-backed fields only. Reuse the tenant route group and trusted tenant boundary, preserve nullable part/quantity/customer in draft states, and do not introduce a new status vocabulary or business workflow rules yet.
+**Post-merge B2.2 verification** — merge PR #11 only at the green verified head after this state commit receives green CI as part of the same PR. Then verify `main` GitHub Actions. Only after green post-merge main CI may a later run select B2.3 RFQ deterministic state machine.
