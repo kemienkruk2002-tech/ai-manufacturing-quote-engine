@@ -1,0 +1,87 @@
+{
+  "tenant_id": "11111111-1111-4111-8111-111111111111",
+  "part_revision": {
+    "part_number": "W07044", "name": "Tuleja 92687521_A", "revision_code": null,
+    "variant": "2", "process_version": "Podstawowa(1)", "status": "Active",
+    "final_mass_kg": "3.540000", "source_reference": "11A"
+  },
+  "material": {
+    "code": "M00320", "grade": "S355J2", "display_name": "Pręt 48 g/w S355J2", "source_reference": "11A"
+  },
+  "stock": {
+    "type": "RoundBar", "diameter_mm": "48", "norm_mass_kg_per_unit": "5.298000",
+    "source_type": "Document", "approval_status": "Approved", "source_reference": "11A", "rule_version": null
+  },
+  "route": {
+    "route_code": "W07044", "version": "1", "status": "Approved", "source_reference": "11A",
+    "operations": [
+      {
+        "operation_no": "0010", "sequence_no": 1, "name": "Cięcie wstępne",
+        "machine": { "code": "4.52", "name": "PIŁY TARCZOWE" },
+        "tj_sec": "30", "tpz_min_per_batch": "20", "origin": "Document", "approval_status": "Approved",
+        "setup_description": null, "source_reference": "11A", "inspection_requirements": []
+      },
+      {
+        "operation_no": "0020", "sequence_no": 2, "name": "Planowanie",
+        "machine": { "code": "4.63", "name": "NAKIEŁCZARKA" },
+        "tj_sec": "140", "tpz_min_per_batch": "30", "origin": "Document", "approval_status": "Approved",
+        "setup_description": null, "source_reference": "11A", "inspection_requirements": []
+      },
+      {
+        "operation_no": "0030", "sequence_no": 3, "name": "Toczenie",
+        "machine": { "code": "4.81", "name": "TAE 35 N HANKA" },
+        "tj_sec": "200", "tpz_min_per_batch": "30", "origin": "Document", "approval_status": "Approved",
+        "setup_description": "Mocować w kłach", "source_reference": "11A",
+        "inspection_requirements": [
+          { "requirement_no": "1", "requirement_type": "DIMENSION", "description": "Ø45h10 (0/-0,1)", "measurement_method": "Transametr MMCf 25-50", "sampling_text": "1", "protocol_requirement_text": "Nie", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" },
+          { "requirement_no": "2", "requirement_type": "ROUGHNESS", "description": "Ra 3,2", "measurement_method": "Chropowatościomierz", "sampling_text": "20", "protocol_requirement_text": "Nie", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" }
+        ]
+      },
+      {
+        "operation_no": "0040", "sequence_no": 4, "name": "Toczenie",
+        "machine": { "code": "3.2", "name": "NLX" },
+        "tj_sec": "600", "tpz_min_per_batch": "60", "origin": "Document", "approval_status": "Approved",
+        "setup_description": "Twarde szczęki", "source_reference": "11A",
+        "inspection_requirements": [
+          { "requirement_no": "1", "requirement_type": "GD_T", "description": "Pozycja Ø0,15", "measurement_method": "Maszyna pomiarowa", "sampling_text": "Sztuka ustawcza", "protocol_requirement_text": "Tak", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" }
+        ]
+      },
+      {
+        "operation_no": "0050", "sequence_no": 5, "name": "Toczenie",
+        "machine": { "code": "1.051", "name": "SBL-500 Obr dokładna 2" },
+        "tj_sec": "285", "tpz_min_per_batch": "60", "origin": "Document", "approval_status": "Approved",
+        "setup_description": "Miękkie przetoczone szczęki", "source_reference": "11A",
+        "inspection_requirements": [
+          { "requirement_no": "1", "requirement_type": "THREAD", "description": "M40x1,5 6g", "measurement_method": "Sprawdzian gwintu pierścieniowy", "sampling_text": "5", "protocol_requirement_text": "Nie", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" },
+          { "requirement_no": "2", "requirement_type": "ROUGHNESS", "description": "Ra 0,8", "measurement_method": "Chropowatościomierz", "sampling_text": "10", "protocol_requirement_text": "Nie", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" },
+          { "requirement_no": "3", "requirement_type": "ROUGHNESS", "description": "Ra 1,6", "measurement_method": "Chropowatościomierz", "sampling_text": "10", "protocol_requirement_text": "Nie", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" }
+        ]
+      },
+      {
+        "operation_no": "0060", "sequence_no": 6, "name": "Przeciąganie",
+        "machine": { "code": "5.51", "name": "PRZECIĄGARKI" },
+        "tj_sec": "80", "tpz_min_per_batch": "20", "origin": "Document", "approval_status": "Approved",
+        "setup_description": "Wielowypust", "source_reference": "11A",
+        "inspection_requirements": [
+          { "requirement_no": "1", "requirement_type": "SPLINE", "description": "16/32, z=9, kąt 30°", "measurement_method": "Sprawdzian GO/NOGO", "sampling_text": "5 / sztuka ustawcza", "protocol_requirement_text": "Częściowo", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" },
+          { "requirement_no": "2", "requirement_type": "DIMENSION", "description": "Wymiar przez wałeczki 10,088 mm", "measurement_method": "Maszyna pomiarowa", "sampling_text": "Sztuka ustawcza", "protocol_requirement_text": "Tak", "origin": "Document", "approval_status": "Approved", "source_reference": "11A" }
+        ]
+      },
+      {
+        "operation_no": "0070", "sequence_no": 7, "name": "Mycie",
+        "machine": { "code": "5.61", "name": "ST. GRADOWANIA" },
+        "tj_sec": "40", "tpz_min_per_batch": "10", "origin": "Document", "approval_status": "Approved",
+        "setup_description": "Mycie i konserwacja", "source_reference": "11A", "inspection_requirements": []
+      },
+      {
+        "operation_no": "0080", "sequence_no": 8, "name": "Kontrola końcowa",
+        "machine": { "code": "0.7", "name": "KONTROLA JAKOŚCI" },
+        "tj_sec": "0", "tpz_min_per_batch": "0", "origin": "Document", "approval_status": "Approved",
+        "setup_description": "Na razie 0 w źródle", "source_reference": "11A", "inspection_requirements": []
+      }
+    ]
+  },
+  "quantity": 150,
+  "machine_rates": { "version": "rates-v1", "status": "BLOCKING" },
+  "rule_versions": { "time_engine": "time-engine-v1", "stock_engine": "stock-engine-v1", "canonical_schema": "canonical-v1" }
+}
