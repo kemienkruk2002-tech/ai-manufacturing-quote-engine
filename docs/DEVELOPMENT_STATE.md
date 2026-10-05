@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.H2 Tenant API route-group guardrail**
 
-Status: IN_PROGRESS
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -102,8 +102,17 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 - Added explicit stable-ID collision coverage.
 - Primary reference: PostgreSQL `INSERT ... ON CONFLICT` documentation.
 
-## Next task
 
-**B1.H2 Tenant API route-group guardrail — IN_PROGRESS**
 
-Move tenant-scoped routes under a single route group/convention that inherits `TenantRfqAccess`, prove tenant endpoints cannot omit the policy, retain route/trusted-tenant mismatch checks, and keep `/health` plus `/openapi/v1.json` intentionally public.
+### B1.H2 implementation pending PR CI
+
+- Branch: `auto/b1-h2-tenant-route-group`.
+- Added one tenant route group: `/api/tenants/{tenantId:guid}`.
+- Applied `TenantRfqAccess` once at the group boundary.
+- RFQ upload/download routes now use relative paths and inherit the policy; per-endpoint `RequireAuthorization` calls were removed.
+- Existing trusted-tenant route mismatch checks remain unchanged inside handlers.
+- Added metadata guard test: every endpoint whose normalized path starts with `/api/tenants/` must carry `TenantRfqAccess`.
+- The same test proves `/health` and `/openapi/v1.json` remain intentionally public.
+- Existing OpenAPI route shapes and RFQ behavior remain unchanged.
+- Current branch verification: **641 unit + 168 integration = 809/809 PASS**.
+- Primary reference: Microsoft ASP.NET Core Minimal APIs route-group guidance; `MapGroup` supports applying `RequireAuthorization` to the entire group.
