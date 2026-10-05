@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Security.Cryptography;
 using Npgsql;
 using QuoteEngine.Application;
+using QuoteEngine.Api;
 using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
 using QuoteEngine.Persistence;
@@ -11,6 +12,34 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        var statusCode = context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode;
+        context.ProblemDetails.Status = statusCode;
+        context.ProblemDetails.Extensions["correlation_id"] = context.HttpContext.TraceIdentifier;
+        if (!context.ProblemDetails.Extensions.ContainsKey("code"))
+        {
+            context.ProblemDetails.Extensions["code"] = statusCode switch
+            {
+                StatusCodes.Status400BadRequest => "BAD_REQUEST",
+                StatusCodes.Status401Unauthorized => "UNAUTHORIZED",
+                StatusCodes.Status403Forbidden => "FORBIDDEN",
+                StatusCodes.Status404NotFound => "NOT_FOUND",
+                StatusCodes.Status405MethodNotAllowed => "METHOD_NOT_ALLOWED",
+                StatusCodes.Status409Conflict => "CONFLICT",
+                StatusCodes.Status413PayloadTooLarge => "PAYLOAD_TOO_LARGE",
+                StatusCodes.Status415UnsupportedMediaType => "UNSUPPORTED_MEDIA_TYPE",
+                StatusCodes.Status422UnprocessableEntity => "UNPROCESSABLE_ENTITY",
+                StatusCodes.Status503ServiceUnavailable => "SERVICE_UNAVAILABLE",
+                _ when statusCode >= 500 => "INTERNAL_SERVER_ERROR",
+                _ => "HTTP_ERROR"
+            };
+        }
+    };
+});
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddSingleton(sp => NpgsqlDataSource.Create(
     sp.GetRequiredService<IConfiguration>().GetConnectionString("QuoteEngine")
     ?? throw new InvalidOperationException("Set ConnectionStrings__QuoteEngine to the PostgreSQL connection string.")));
@@ -51,6 +80,9 @@ if (migrate || seed || calculate)
     await app.DisposeAsync();
     return;
 }
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue("Dev:GoldenEnabled", true))
 {
