@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using QuoteEngine.Application;
 using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
@@ -51,6 +50,7 @@ public sealed class ApiProblemDetailsTests(PostgresFixture db)
         using var factory = new ThrowingRfqFileApiFactory(db.ConnectionString,
             new DomainValidationException("RFQ_TEST_INVALID", "Controlled validation message."));
         using var client = factory.CreateClient();
+        TestAuthentication.Authenticate(client, PostgresFixture.TenantId);
         using var response = await client.PostAsync(
             $"/api/tenants/{PostgresFixture.TenantId}/rfqs/{PostgresFixture.RequestId}/files/drawing",
             FileBody("content"u8.ToArray()));
@@ -69,6 +69,7 @@ public sealed class ApiProblemDetailsTests(PostgresFixture db)
         using var factory = new ThrowingRfqFileApiFactory(db.ConnectionString,
             new MissingSnapshotInputException("PART_REVISION_MISSING", "Controlled missing input."));
         using var client = factory.CreateClient();
+        TestAuthentication.Authenticate(client, PostgresFixture.TenantId);
         using var response = await client.PostAsync(
             $"/api/tenants/{PostgresFixture.TenantId}/rfqs/{PostgresFixture.RequestId}/files/drawing",
             FileBody("content"u8.ToArray()));
@@ -86,6 +87,7 @@ public sealed class ApiProblemDetailsTests(PostgresFixture db)
         using var factory = new ThrowingRfqFileApiFactory(db.ConnectionString,
             new InvalidOperationException(secretMarker));
         using var client = factory.CreateClient();
+        TestAuthentication.Authenticate(client, PostgresFixture.TenantId);
         using var response = await client.PostAsync(
             $"/api/tenants/{PostgresFixture.TenantId}/rfqs/{PostgresFixture.RequestId}/files/drawing",
             FileBody("content"u8.ToArray()));
@@ -127,8 +129,7 @@ internal sealed class ThrowingRfqFileApiFactory(string connectionString, Excepti
         });
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<ITenantContext>();
-            services.AddScoped<ITenantContext>(_ => new StaticTenantContext(PostgresFixture.TenantId));
+            TestAuthentication.Configure(services);
             services.RemoveAll<IRfqFileRepository>();
             services.AddSingleton<IRfqFileRepository>(new ThrowingRfqFileRepository(exception));
         });
