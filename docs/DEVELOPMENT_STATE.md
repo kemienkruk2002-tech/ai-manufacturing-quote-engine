@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.H3 GitHub branch/CI guardrails**
 
-Status: IN_PROGRESS
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -120,8 +120,18 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 - Existing RFQ route shapes and OpenAPI output remain unchanged.
 - Primary reference: Microsoft ASP.NET Core Minimal APIs route-group guidance for group-level `RequireAuthorization`.
 
-## Next task
 
-**B1.H3 GitHub branch/CI guardrails — IN_PROGRESS**
 
-Check whether the connected GitHub tooling can enforce `main` protection and required CI. If supported, require the CI test check before merge and block force-push/deletion. Also rename the stale workflow title from `Stage 1 deterministic core` to a project-level CI name. If branch-protection mutation is unsupported, document that exact external blocker and still perform the workflow-name cleanup.
+### B1.H3 implementation pending PR CI
+
+- Branch: `auto/b1-h3-github-guardrails`.
+- Renamed workflow from `Stage 1 deterministic core` to `Quote Engine CI`.
+- Renamed TRX/artifact labels from `stage1` to `quote-engine`; test behavior is unchanged.
+- Workflow permissions remain least-privilege: `contents: read`.
+- Verified the required check context is the job name `test`.
+- Repository owner permission is `admin`, but the connected GitHub tool exposes no branch-protection/ruleset mutation action.
+- Current `main` remains `protected: false`; this cannot be changed through the available connector.
+- Created operational blocker issue #8: `Enable main branch protection and require CI`.
+- Issue #8 records the minimum required admin configuration: require `test`, block force pushes, block deletion, then verify via repository API.
+- Branch verification under the renamed workflow: **641 unit + 168 integration = 809/809 PASS**.
+- Primary references: GitHub protected branches/rulesets documentation and required-status-check naming rules.
