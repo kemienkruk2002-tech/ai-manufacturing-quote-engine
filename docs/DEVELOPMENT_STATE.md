@@ -15,9 +15,9 @@ Mode: autonomous backend-first development
 
 **B1 — API foundation and production boundaries**
 
-Current task: **B1.2 OpenAPI**
+Current task: **B1.3 Tenant context boundary**
 
-Status: CI_PENDING
+Status: READY
 
 ## Execution rule
 
@@ -54,17 +54,29 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 
 ### Next task
 
-**B1.2 OpenAPI — CI_PENDING**
+**B1.3 Tenant context boundary — READY**
 
 Implement API metadata/OpenAPI for production routes, exclude the dev-only golden endpoint from production documentation, add schema smoke coverage, then run full CI.
 
 
-### B1.2 implementation pending CI
 
-- Branch: `auto/b1-2-openapi`
+
+### Completed work
+
+- B1.2 OpenAPI — DONE
+- PR: #2 `B1.2: add OpenAPI schema endpoint`
+- Merge: `4b051a1a2e9ea8ae74e8e7f2231a354a33226884`
+- Verified PR CI: **638 unit + 159 integration = 797/797 PASS**
+- Verified post-merge `main` CI: PASS
 - Added deterministic OpenAPI 3.0.3 document at `/openapi/v1.json`.
-- Added production endpoint metadata for RFQ file upload/download and health.
-- Dev-only golden endpoint and the OpenAPI endpoint itself are excluded from the document.
-- Schema generation smoke test uses an intentionally unreachable PostgreSQL endpoint to prove documentation generation does not query the database.
-- No new NuGet dependency and no migration/domain changes.
-- Primary reference: Microsoft ASP.NET Core OpenAPI/API Explorer guidance for .NET 8.
+- Documented production RFQ upload/download and health operations.
+- Dev-only golden endpoint and the schema endpoint itself are excluded from the document.
+- Added smoke coverage proving schema generation succeeds without a live PostgreSQL connection.
+- No new NuGet package, no migration change, no deterministic domain-core change.
+- Primary reference: Microsoft ASP.NET Core .NET 8 OpenAPI/API Explorer guidance.
+
+### Next task
+
+**B1.3 Tenant context boundary — READY**
+
+Introduce `ITenantContext` as the trusted application boundary for tenant identity, retain route tenant IDs only as resource identifiers/checks, and add mismatch coverage without choosing a real external identity provider yet.
