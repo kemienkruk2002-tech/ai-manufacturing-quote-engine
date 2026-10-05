@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -302,7 +303,7 @@ internal sealed class RfqFileApiFactory(string connectionString, string storageR
         });
         if (configureTenantContext)
         {
-            builder.ConfigureServices(services =>
+            builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<ITenantContext>();
                 services.AddScoped<ITenantContext>(_ => new StaticTenantContext(PostgresFixture.TenantId));
