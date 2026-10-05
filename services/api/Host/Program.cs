@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using QuoteEngine.Application;
@@ -16,6 +17,34 @@ builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.C
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, ClaimsTenantContext>();
+
+var defaultAuthenticationScheme = builder.Environment.IsDevelopment()
+    ? ApiAuthenticationSchemes.Development
+    : ApiAuthenticationSchemes.Closed;
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = defaultAuthenticationScheme;
+        options.DefaultChallengeScheme = defaultAuthenticationScheme;
+    })
+    .AddScheme<AuthenticationSchemeOptions, ClosedAuthenticationHandler>(
+        ApiAuthenticationSchemes.Closed, _ => { })
+    .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
+        ApiAuthenticationSchemes.Development, _ => { });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(ApiAuthorizationPolicies.TenantRfqAccess, policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireAssertion(context =>
+        {
+            var claims = context.User.FindAll(ClaimsTenantContext.TenantClaimType).ToArray();
+            return claims.Length == 1
+                && Guid.TryParse(claims[0].Value, out var tenantId)
+                && tenantId != Guid.Empty;
+        });
+    });
+});
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -87,6 +116,8 @@ if (migrate || seed || calculate)
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue("Dev:GoldenEnabled", true))
 {
@@ -153,7 +184,8 @@ app.MapPost("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logi
         return Results.Ok(version);
     })
     .WithName("UploadRfqFile")
-    .WithMetadata(ApiOpenApiDocumentV1.RfqFileUpload);
+    .WithMetadata(ApiOpenApiDocumentV1.RfqFileUpload)
+    .RequireAuthorization(ApiAuthorizationPolicies.TenantRfqAccess);
 
 app.MapGet("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logicalKey}/versions/{versionNo:int}",
     async (Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo,
@@ -172,7 +204,8 @@ app.MapGet("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logic
         return Results.File(content, version.MimeType ?? "application/octet-stream", version.OriginalFileName);
     })
     .WithName("DownloadRfqFileVersion")
-    .WithMetadata(ApiOpenApiDocumentV1.RfqFileDownload);
+    .WithMetadata(ApiOpenApiDocumentV1.RfqFileDownload)
+    .RequireAuthorization(ApiAuthorizationPolicies.TenantRfqAccess);
 
 app.MapGet(ApiOpenApiDocumentV1.DocumentPath, (EndpointDataSource endpoints) =>
         Results.Json(ApiOpenApiDocumentV1.Build(endpoints), contentType: ApiOpenApiDocumentV1.MediaType))

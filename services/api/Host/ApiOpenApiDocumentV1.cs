@@ -27,7 +27,8 @@ internal static class ApiOpenApiDocumentV1
         [
             Json(200, "RFQ file version metadata."),
             Problem(400, "Invalid RFQ file request."),
-            Problem(401, "Authenticated tenant context is unavailable."),
+            Problem(401, "Authentication is required."),
+            Problem(403, "Authenticated identity is not authorized for tenant RFQ access."),
             Problem(404, "RFQ was not found for the active tenant."),
             Problem(413, "RFQ file exceeds the configured upload limit."),
             Problem(415, "RFQ file MIME type is not allowed."),
@@ -48,7 +49,8 @@ internal static class ApiOpenApiDocumentV1
         null,
         [
             Binary(200, "RFQ file bytes."),
-            Problem(401, "Authenticated tenant context is unavailable."),
+            Problem(401, "Authentication is required."),
+            Problem(403, "Authenticated identity is not authorized for tenant RFQ access."),
             Problem(404, "RFQ file version was not found for the active tenant."),
             Problem(500, "RFQ metadata exists but the stored object is missing."),
             Problem(503, "RFQ file storage policy is not configured.")
