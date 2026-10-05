@@ -8,9 +8,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
-using QuoteEngine.Application;
 using QuoteEngine.Domain.Quoting;
 using QuoteEngine.Persistence;
 
@@ -95,7 +93,7 @@ public sealed class RfqFileApiTests(PostgresFixture db)
     [Fact]
     public async Task Missing_trusted_tenant_context_is_unauthorized()
     {
-        using var api = new RfqFileApiContext(db.ConnectionString, configureTenantContext: false);
+        using var api = new RfqFileApiContext(db.ConnectionString, authenticate: false);
 
         using var response = await api.Client.GetAsync(DownloadUrl(
             PostgresFixture.TenantId, PostgresFixture.RequestId, "missing-context", 1));
@@ -260,11 +258,12 @@ internal sealed class RfqFileApiContext : IDisposable
         : 0;
 
     public RfqFileApiContext(string connectionString, long maxUploadBytes = 1024, bool configurePolicy = true,
-        bool configureTenantContext = true)
+        bool authenticate = true)
     {
-        factory = new RfqFileApiFactory(connectionString, storageRoot, maxUploadBytes, configurePolicy,
-            configureTenantContext);
+        factory = new RfqFileApiFactory(connectionString, storageRoot, maxUploadBytes, configurePolicy);
         Client = factory.CreateClient();
+        if (authenticate)
+            TestAuthentication.Authenticate(Client, PostgresFixture.TenantId);
     }
 
     public void Dispose()
@@ -281,7 +280,7 @@ internal sealed class RfqFileApiContext : IDisposable
 }
 
 internal sealed class RfqFileApiFactory(string connectionString, string storageRoot, long maxUploadBytes,
-    bool configurePolicy, bool configureTenantContext) : WebApplicationFactory<Program>
+    bool configurePolicy) : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -301,18 +300,6 @@ internal sealed class RfqFileApiFactory(string connectionString, string storageR
             }
             configuration.AddInMemoryCollection(values);
         });
-        if (configureTenantContext)
-        {
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<ITenantContext>();
-                services.AddScoped<ITenantContext>(_ => new StaticTenantContext(PostgresFixture.TenantId));
-            });
-        }
+        builder.ConfigureTestServices(TestAuthentication.Configure);
     }
-}
-
-internal sealed class StaticTenantContext(Guid tenantId) : ITenantContext
-{
-    public Guid TenantId { get; } = tenantId;
 }
