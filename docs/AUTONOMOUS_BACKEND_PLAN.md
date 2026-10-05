@@ -76,7 +76,7 @@ Audit: `docs/B1_API_FOUNDATION_AUDIT_2026-10-05.md`
 
 B1.1-B1.4 are complete. The audit produced the following hardening tasks that run before B2.
 
-### B1.H1 Calculation-run concurrent idempotency — READY
+### B1.H1 Calculation-run concurrent idempotency — DONE
 
 A concrete CI failure exposed a race in concurrent equal calculation persistence.
 
@@ -87,7 +87,7 @@ A concrete CI failure exposed a race in concurrent equal calculation persistence
 - do not alter calculation formulas or canonical hashes;
 - full CI green.
 
-### B1.H2 Tenant API route-group guardrail
+### B1.H2 Tenant API route-group guardrail — READY
 
 After H1:
 - group all tenant-scoped HTTP routes under one tenant route group/convention;
