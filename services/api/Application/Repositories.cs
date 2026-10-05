@@ -1,0 +1,76 @@
+using QuoteEngine.Domain.Calculation;
+using QuoteEngine.Domain.Machines;
+using QuoteEngine.Domain.Quoting;
+
+namespace QuoteEngine.Application;
+
+public sealed record PartSnapshotData(PartRevisionSnapshot Revision, MaterialSnapshot Material, StockSnapshot Stock);
+public sealed record SnapshotRequest(Guid TenantId, Guid QuoteRequestId, string RouteCode, string RouteVersion,
+    string MachineRateVersion, RuleVersions RuleVersions);
+public sealed record PreparedSnapshot(QuoteSnapshotPayload Payload, Guid SourceRouteId, Guid SourceRevisionId);
+public sealed record StoredSnapshot(Guid Id, Guid TenantId, Guid QuoteRequestId, Guid SourceRouteId, string CanonicalJson, string SnapshotHash);
+public sealed record StoredCalculation(Guid Id, Guid TenantId, Guid SnapshotId, string CalculationHash,
+    string EngineVersion, string ResultJson, CalculationStatus Status);
+public sealed record CalculationWrite(StoredSnapshot Snapshot, QuoteSnapshotPayload Payload, string EngineVersion,
+    string CalculationHash, TimeCalculationResult TimeResult, StockCalculationResult StockResult,
+    CostCalculationResult? CostResult, string ResultJson, string CorrelationId,
+    DateTimeOffset StartedAt, DateTimeOffset FinishedAt, decimal DurationMs);
+
+public interface IPartRepository
+{
+    Task<PartSnapshotData> GetRevisionAsync(Guid tenantId, Guid revisionId, CancellationToken cancellationToken = default);
+}
+public interface IRouteRepository
+{
+    Task<RouteSnapshot> GetApprovedAsync(Guid tenantId, Guid revisionId, string routeCode, string version,
+        CancellationToken cancellationToken = default);
+}
+public interface IMachineRateRepository
+{
+    Task<decimal?> FindRateAsync(Guid tenantId, Guid machineId, RateType rateType, DateTimeOffset effectiveAt,
+        string rateVersion, CancellationToken cancellationToken = default);
+}
+public interface ISnapshotInputRepository
+{
+    Task<PreparedSnapshot> BuildAsync(SnapshotRequest request, CancellationToken cancellationToken = default);
+}
+public interface IQuoteSnapshotRepository
+{
+    Task<StoredSnapshot> GetOrCreateAsync(Guid quoteRequestId, PreparedSnapshot prepared, CancellationToken cancellationToken = default);
+    Task<StoredSnapshot?> FindAsync(Guid tenantId, string snapshotHash, CancellationToken cancellationToken = default);
+}
+public interface ICalculationRunRepository
+{
+    Task<StoredCalculation> SaveAsync(CalculationWrite calculation, CancellationToken cancellationToken = default);
+    Task<StoredCalculation?> FindAsync(Guid tenantId, string calculationHash, CancellationToken cancellationToken = default);
+}
+public interface IRfqFileRepository
+{
+    Task<bool> RequestExistsAsync(Guid tenantId, Guid quoteRequestId,
+        CancellationToken cancellationToken = default);
+    Task<RfqFileVersion> GetOrCreateVersionAsync(RfqFileVersionInput input,
+        CancellationToken cancellationToken = default);
+    Task<RfqFileVersion?> FindVersionAsync(Guid tenantId, Guid quoteRequestId,
+        string logicalKey, int versionNo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RfqFileVersion>> ListVersionsAsync(Guid tenantId, Guid quoteRequestId,
+        string logicalKey, CancellationToken cancellationToken = default);
+}
+public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
+public interface IFileObjectStore
+{
+    Task<FileObjectPutResult> PutAsync(Stream content, string expectedSha256,
+        CancellationToken cancellationToken = default);
+    Task<Stream?> OpenReadAsync(string sha256, CancellationToken cancellationToken = default);
+}
+
+public sealed class FileObjectHashMismatchException(string expectedSha256, string actualSha256)
+    : Exception($"FILE_OBJECT_HASH_MISMATCH: expected {expectedSha256}, calculated {actualSha256}.")
+{
+    public string ExpectedSha256 { get; } = expectedSha256;
+    public string ActualSha256 { get; } = actualSha256;
+}
+
+public sealed class MissingSnapshotInputException(string code, string message) : Exception(message)
+{
+    public string Code { get; } = code;
+}
