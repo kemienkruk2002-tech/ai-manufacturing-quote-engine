@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rfq-extractor-v1.schema.json",
+  "title": "CanonicalRFQ / RFQ_EXTRACTOR v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "version", "rfq_number", "customer_reference", "part_numbers", "revisions",
+    "quantities", "quote_due_date", "requested_delivery_date", "material_mentions",
+    "process_mentions", "special_requirements", "references_to_previous_jobs", "open_questions"
+  ],
+  "properties": {
+    "schema": { "const": "RFQ_EXTRACTOR" },
+    "version": { "const": "v1" },
+    "rfq_number": { "$ref": "#/$defs/string_fact" },
+    "customer_reference": { "$ref": "#/$defs/string_fact" },
+    "part_numbers": { "type": "array", "items": { "$ref": "#/$defs/string_fact" } },
+    "revisions": { "type": "array", "items": { "$ref": "#/$defs/string_fact" } },
+    "quantities": { "type": "array", "items": { "$ref": "#/$defs/integer_fact" } },
+    "quote_due_date": { "$ref": "#/$defs/date_fact" },
+    "requested_delivery_date": { "$ref": "#/$defs/date_fact" },
+    "material_mentions": { "type": "array", "items": { "$ref": "#/$defs/string_fact" } },
+    "process_mentions": { "type": "array", "items": { "$ref": "#/$defs/string_fact" } },
+    "special_requirements": { "type": "array", "items": { "$ref": "#/$defs/string_fact" } },
+    "references_to_previous_jobs": { "type": "array", "items": { "$ref": "#/$defs/string_fact" } },
+    "open_questions": { "type": "array", "items": { "$ref": "#/$defs/string_fact" } }
+  },
+  "$defs": {
+    "source_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_type", "source_id"],
+      "properties": {
+        "source_type": { "type": "string", "minLength": 1 },
+        "source_id": { "type": "string", "minLength": 1 },
+        "page": { "type": ["integer", "null"], "minimum": 1 },
+        "locator": { "type": ["string", "null"] }
+      }
+    },
+    "fact_common": {
+      "type": "object",
+      "required": [
+        "raw_values", "normalized_value", "source_references", "model_confidence",
+        "classification", "requires_confirmation", "warnings"
+      ],
+      "properties": {
+        "raw_values": { "type": "array", "items": { "type": "string" } },
+        "source_references": { "type": "array", "items": { "$ref": "#/$defs/source_reference" } },
+        "model_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "classification": { "enum": ["EXPLICIT", "INFERRED", "MISSING", "CONFLICT"] },
+        "requires_confirmation": { "type": "boolean" },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "string_fact": {
+      "allOf": [
+        { "$ref": "#/$defs/fact_common" },
+        { "type": "object", "properties": { "normalized_value": { "type": ["string", "null"] } } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "integer_fact": {
+      "allOf": [
+        { "$ref": "#/$defs/fact_common" },
+        { "type": "object", "properties": { "normalized_value": { "type": ["integer", "null"] } } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "date_fact": {
+      "allOf": [
+        { "$ref": "#/$defs/fact_common" },
+        { "type": "object", "properties": { "normalized_value": { "type": ["string", "null"], "format": "date" } } }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

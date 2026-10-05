@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <EmbeddedResource Include="Quoting/rfq-extractor-v1.schema.json"
+                      LogicalName="QuoteEngine.Domain.Quoting.rfq-extractor-v1.schema.json" />
+  </ItemGroup>
+</Project>
