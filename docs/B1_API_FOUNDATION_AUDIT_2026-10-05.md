@@ -152,3 +152,25 @@ Before B2 feature development, execute unblocked P1 engineering findings in this
 Then start B2.1 customer/contact model.
 
 The production identity-provider and OpenAPI security-scheme items remain blocked on deployment decisions and must not be guessed.
+
+
+## Hardening follow-up status
+
+### B1.H3 execution result
+
+Repository-side CI cleanup is complete:
+- workflow name is now `Quote Engine CI`;
+- least-privilege `permissions: contents: read` is retained;
+- required status-check context is `test`.
+
+Branch protection itself remains an external configuration blocker because the connected GitHub tool does not expose branch-protection/ruleset mutation, despite the repository owner having admin permission.
+
+Tracking issue: #8 `Enable main branch protection and require CI`.
+
+Minimum unresolved admin action:
+- protect `main`;
+- require status check `test`;
+- keep force pushes disabled;
+- keep branch deletion disabled.
+
+This blocker does not justify weakening CI or delaying backend feature development. Until protection is verified, the autonomous development loop must continue to enforce the stricter PR -> green CI -> merge discipline itself.
