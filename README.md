@@ -1,4 +1,12 @@
-# AI Manufacturing Quote Engine — Etap 1 + CostEngineV1
+# AI Manufacturing Quote Engine
+
+## Aktualny stan — 2026-10-05
+
+Projekt został przeniesiony do GitHuba i zweryfikowany w GitHub Actions na PostgreSQL 16. Aktualny pełny przebieg CI: **790/790 testów zielonych** (638 unit + 152 integration, 0 failed, 0 skipped). Zaimplementowane są deterministyczne TimeEngineV1, StockEngineV1 i CostEngineV1, immutable canonical snapshots/replay, RFQ draft + wersjonowane pliki, CanonicalRFQ v1, AI Gateway, prompt-v1, OpenAI Responses provider oraz B069 — bounded retry tylko dla błędów TRANSIENT.
+
+AI core jest obecnie biblioteką i **nie jest jeszcze podpięty do Host/API**. Finalny PricingEngine/margin policy pozostaje BLOCKED do czasu dostarczenia dokładnej polityki handlowej. Nie ma jeszcze kompletnego RFQ CRUD/customer workflow, auth/RLS, frontendu, STEP/geometry, QuoteVersion/approval/PDF/email ani actuals.
+
+Pełny audyt i zalecana kolejność implementacji: [`docs/PROJECT_AUDIT_2026-10-05.md`](docs/PROJECT_AUDIT_2026-10-05.md).
 
 Deterministyczny rdzeń W07044 / Tuleja 92687521_A: PostgreSQL, zatwierdzony routing, TimeEngineV1, StockEngineV1, CostEngineV1, immutable snapshot oraz wersjonowane metadane plików RFQ z lokalnym content-addressed store SHA-256. ASP.NET Core **.NET 8**, xUnit, Npgsql. Silniki domenowe nie korzystają z AI, sieci, bazy, zegara ani losowości.
 
@@ -71,7 +79,7 @@ Silniki używają `decimal`, bez zaokrągleń do dwóch miejsc. Wartości godzin
 - `docs/sources` — tekst odczytanych źródeł 02, 11, 11A wraz z adresem i datą wersji.
 - `docs/adr/001-stage1.md` — decyzje techniczne, format snapshotu i ograniczenia.
 
-Etap udostępnia debug przez API/command. Ekran Next.js będzie mógł korzystać z tego API w kolejnym etapie. PricingEngine, parser STEP, AI Extractor i email ingestion nie są częścią implementacji.
+Etap udostępnia debug przez API/command oraz produkcyjne endpointy upload/download wersjonowanych plików RFQ. AI Extractor core (CanonicalRFQ, schema, prompt, provider, gateway i retry) jest zaimplementowany i przetestowany, ale nie jest jeszcze zarejestrowany w Host/DI ani wystawiony jako endpoint. PricingEngine, parser STEP, frontend i email ingestion nie są jeszcze częścią działającego przepływu aplikacji.
 
 ## Migracje i seed
 
@@ -81,6 +89,7 @@ Etap udostępnia debug przez API/command. Ekran Next.js będzie mógł korzysta�
 4. `004_audit.sql`: append-only audit i triggery decyzji.
 5. `005_cost_engine_v1.sql`: wersjonowane stawki kosztowe, jawny koszt materiału oraz pełnoprecyzyjne wyniki kosztowe operacji.
 6. `006_rfq_file_versions.sql`: logiczne dokumenty RFQ i immutable wersje metadanych; baza nie przechowuje bajtów plików.
+7. `007_rfq_draft_nullable_inputs.sql`: pozwala tworzyć RFQ w stanie draft bez rozpoznanej rewizji/ilości, ale wymaga tych danych przed przejściem do stanów kalkulacyjnych.
 
 `DatabaseMigrator` wykonuje migracje transakcyjnie pod advisory lock. Zapamiętuje SHA-256 każdej migracji i odrzuca zmianę już zastosowanego pliku. Nowe wdrożone zmiany wymagają nowej migracji. `--migrate` i `--seed-golden` są osobnymi jawnymi akcjami; serwer nie zmienia schematu przy zwykłym starcie.
 
@@ -94,6 +103,6 @@ Rollback zmian schematu w bazie zawierającej dane: odtworzenie przetestowanej k
 - **TODO:** źródła nie podają autora i daty zatwierdzenia; pola pozostają NULL. Seed zachowuje zatwierdzone statusy wskazane w poleceniu.
 - **TODO:** pełna weryfikacja wymagań jakościowych. Zaimportowano osiem pozycji 11A; „Częściowo” zachowano dosłownie, bez zgadywania wartości boolean. Nie dodano osobnych czasów kontroli; 0080 ma potwierdzone 0/0.
 - **TODO biznesowe:** postępowanie przy potwierdzonej masie finalnej większej niż normatyw. Obecny silnik stosuje wskazany wzór, bez clampowania lub nowej reguły odrzucenia.
-- **CI zdalne:** workflow jest przygotowany; uruchomienie GitHub Actions wymaga repozytorium zdalnego. Nie skonfigurowano ani nie opublikowano zdalnego repozytorium.
+- **CI zdalne:** GitHub Actions jest aktywne; aktualny pełny przebieg na PostgreSQL 16 zakończył się wynikiem **790/790 PASS**.
 
 Wynik i pełna lista plików znajdują się w `docs/verification-stage1.md` oraz `docs/changed-files.txt`.
