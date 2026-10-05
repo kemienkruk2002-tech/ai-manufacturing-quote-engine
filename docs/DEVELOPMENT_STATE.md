@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.H3 GitHub branch/CI guardrails**
 
-Status: READY
+Status: IN_PROGRESS
 
 ## Execution rule
 
@@ -122,6 +122,6 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 
 ## Next task
 
-**B1.H3 GitHub branch/CI guardrails — READY**
+**B1.H3 GitHub branch/CI guardrails — IN_PROGRESS**
 
 Check whether the connected GitHub tooling can enforce `main` protection and required CI. If supported, require the CI test check before merge and block force-push/deletion. Also rename the stale workflow title from `Stage 1 deterministic core` to a project-level CI name. If branch-protection mutation is unsupported, document that exact external blocker and still perform the workflow-name cleanup.
