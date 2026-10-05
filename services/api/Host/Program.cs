@@ -14,6 +14,8 @@ builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantContext, ClaimsTenantContext>();
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -107,11 +109,12 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue("Dev:Golde
 }
 app.MapPost("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logicalKey}",
     async (Guid tenantId, Guid quoteRequestId, string logicalKey, HttpRequest request,
-        IRfqFileRepository repository, IConfiguration configuration, CancellationToken token) =>
+        ITenantContext tenantContext, IRfqFileRepository repository, IConfiguration configuration, CancellationToken token) =>
     {
+        var trustedTenantId = tenantContext.RequireRouteTenant(tenantId);
         if (!TryReadRfqFilePolicy(configuration, out var policy))
             return RfqFileProblem(503, "RFQ_FILE_POLICY_NOT_CONFIGURED", "RFQ file policy is not configured.");
-        if (!await repository.RequestExistsAsync(tenantId, quoteRequestId, token)) return Results.NotFound();
+        if (!await repository.RequestExistsAsync(trustedTenantId, quoteRequestId, token)) return Results.NotFound();
         if (string.IsNullOrWhiteSpace(logicalKey) || logicalKey.Any(char.IsControl) || !request.HasFormContentType)
             return RfqFileProblem(400, "RFQ_FILE_REQUEST_INVALID", "A valid logical key and multipart file are required.");
 
@@ -145,7 +148,7 @@ app.MapPost("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logi
         await using (var content = file.OpenReadStream())
             stored = await objectStore.PutAsync(content, sha256, token);
 
-        var version = await repository.GetOrCreateVersionAsync(new(tenantId, quoteRequestId, logicalKey,
+        var version = await repository.GetOrCreateVersionAsync(new(trustedTenantId, quoteRequestId, logicalKey,
             file.FileName, file.ContentType, stored.ByteSize, stored.Sha256), token);
         return Results.Ok(version);
     })
@@ -154,11 +157,12 @@ app.MapPost("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logi
 
 app.MapGet("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logicalKey}/versions/{versionNo:int}",
     async (Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo,
-        IRfqFileRepository repository, IConfiguration configuration, CancellationToken token) =>
+        ITenantContext tenantContext, IRfqFileRepository repository, IConfiguration configuration, CancellationToken token) =>
     {
+        var trustedTenantId = tenantContext.RequireRouteTenant(tenantId);
         if (!TryReadRfqFilePolicy(configuration, out var policy))
             return RfqFileProblem(503, "RFQ_FILE_POLICY_NOT_CONFIGURED", "RFQ file policy is not configured.");
-        var version = await repository.FindVersionAsync(tenantId, quoteRequestId, logicalKey, versionNo, token);
+        var version = await repository.FindVersionAsync(trustedTenantId, quoteRequestId, logicalKey, versionNo, token);
         if (version is null) return Results.NotFound();
 
         IFileObjectStore objectStore = new LocalFileObjectStore(policy.StorageRoot);
