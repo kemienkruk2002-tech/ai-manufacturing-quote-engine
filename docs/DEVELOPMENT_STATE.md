@@ -17,7 +17,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.2 OpenAPI**
 
-Status: READY
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -54,6 +54,17 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 
 ### Next task
 
-**B1.2 OpenAPI — READY**
+**B1.2 OpenAPI — CI_PENDING**
 
 Implement API metadata/OpenAPI for production routes, exclude the dev-only golden endpoint from production documentation, add schema smoke coverage, then run full CI.
+
+
+### B1.2 implementation pending CI
+
+- Branch: `auto/b1-2-openapi`
+- Added deterministic OpenAPI 3.0.3 document at `/openapi/v1.json`.
+- Added production endpoint metadata for RFQ file upload/download and health.
+- Dev-only golden endpoint and the OpenAPI endpoint itself are excluded from the document.
+- Schema generation smoke test uses an intentionally unreachable PostgreSQL endpoint to prove documentation generation does not query the database.
+- No new NuGet dependency and no migration/domain changes.
+- Primary reference: Microsoft ASP.NET Core OpenAPI/API Explorer guidance for .NET 8.

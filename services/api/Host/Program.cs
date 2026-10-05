@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using QuoteEngine.Application;
 using QuoteEngine.Api;
@@ -12,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -146,7 +148,9 @@ app.MapPost("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logi
         var version = await repository.GetOrCreateVersionAsync(new(tenantId, quoteRequestId, logicalKey,
             file.FileName, file.ContentType, stored.ByteSize, stored.Sha256), token);
         return Results.Ok(version);
-    });
+    })
+    .WithName("UploadRfqFile")
+    .WithMetadata(ApiOpenApiDocumentV1.RfqFileUpload);
 
 app.MapGet("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logicalKey}/versions/{versionNo:int}",
     async (Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo,
@@ -162,8 +166,17 @@ app.MapGet("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logic
         if (content is null)
             return RfqFileProblem(500, "RFQ_FILE_OBJECT_MISSING", "RFQ file metadata exists but its object is missing.");
         return Results.File(content, version.MimeType ?? "application/octet-stream", version.OriginalFileName);
-    });
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+    })
+    .WithName("DownloadRfqFileVersion")
+    .WithMetadata(ApiOpenApiDocumentV1.RfqFileDownload);
+
+app.MapGet(ApiOpenApiDocumentV1.DocumentPath, (EndpointDataSource endpoints) =>
+        Results.Json(ApiOpenApiDocumentV1.Build(endpoints), contentType: ApiOpenApiDocumentV1.MediaType))
+    .WithName("GetOpenApiV1");
+
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+    .WithName("GetHealth")
+    .WithMetadata(ApiOpenApiDocumentV1.Health);
 await app.RunAsync();
 
 static bool TryReadRfqFilePolicy(IConfiguration configuration, out RfqFilePolicy policy)
