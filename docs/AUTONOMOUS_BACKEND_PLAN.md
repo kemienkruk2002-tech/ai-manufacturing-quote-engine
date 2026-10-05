@@ -87,7 +87,7 @@ A concrete CI failure exposed a race in concurrent equal calculation persistence
 - do not alter calculation formulas or canonical hashes;
 - full CI green.
 
-### B1.H2 Tenant API route-group guardrail — READY
+### B1.H2 Tenant API route-group guardrail — DONE
 
 After H1:
 - group all tenant-scoped HTTP routes under one tenant route group/convention;
@@ -97,7 +97,7 @@ After H1:
 - keep `/health` and `/openapi/v1.json` public intentionally;
 - metadata/integration tests and full CI.
 
-### B1.H3 GitHub branch/CI guardrails
+### B1.H3 GitHub branch/CI guardrails — READY
 
 When repository-admin tooling supports it:
 - require CI before merge to `main`;
