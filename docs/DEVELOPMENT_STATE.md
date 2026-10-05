@@ -15,9 +15,9 @@ Mode: autonomous backend-first development
 
 **B1 — API foundation and production boundaries**
 
-Current task: **B1.1 ProblemDetails/error contract**
+Current task: **B1.2 OpenAPI**
 
-Status: CI_PENDING
+Status: READY
 
 ## Execution rule
 
@@ -43,11 +43,17 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 - prefer new versioned behavior over mutating historical rules.
 
 
-### Active work
+### Completed work
 
-- Branch: `auto/b1-1-problem-details`
-- Task: B1.1 ProblemDetails/error contract
-- Reference checked: current Microsoft ASP.NET Core guidance for `AddProblemDetails`, `UseExceptionHandler` and `IExceptionHandler`.
+- B1.1 ProblemDetails/error contract — DONE
+- PR: #1 `B1.1: standardize API ProblemDetails errors`
+- Merge: `958c04196ca70a2157f38f915f20c65d973483bb`
+- Verified CI: **638 unit + 157 integration = 795/795 PASS**
+- Added centralized exception mapping, consistent ProblemDetails, stable error codes, `correlation_id`, safe 500 responses and integration coverage.
+- Reference: current Microsoft ASP.NET Core guidance for `AddProblemDetails`, `UseExceptionHandler` and `IExceptionHandler`.
 
-- Pull request: #1 `B1.1: standardize API ProblemDetails errors`
-- CI: pending on branch/PR
+### Next task
+
+**B1.2 OpenAPI — READY**
+
+Implement API metadata/OpenAPI for production routes, exclude the dev-only golden endpoint from production documentation, add schema smoke coverage, then run full CI.
