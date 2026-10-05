@@ -91,7 +91,7 @@ public sealed class RfqFileApiTests(PostgresFixture db)
     }
 
     [Fact]
-    public async Task Missing_trusted_tenant_context_is_unauthorized()
+    public async Task Unauthenticated_request_is_rejected_by_authorization_middleware()
     {
         using var api = new RfqFileApiContext(db.ConnectionString, authenticate: false);
 
@@ -99,7 +99,7 @@ public sealed class RfqFileApiTests(PostgresFixture db)
             PostgresFixture.TenantId, PostgresFixture.RequestId, "missing-context", 1));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Equal("TENANT_CONTEXT_REQUIRED",
+        Assert.Equal("UNAUTHORIZED",
             (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }
 
