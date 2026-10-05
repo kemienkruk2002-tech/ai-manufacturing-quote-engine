@@ -1,4 +1,4 @@
-name: Stage 1 deterministic core
+name: Quote Engine CI
 
 on:
   push:
@@ -36,10 +36,10 @@ jobs:
       - name: Restore pinned dependencies
         run: dotnet restore QuoteEngine.sln --locked-mode
       - name: Unit and real PostgreSQL integration tests
-        run: dotnet test QuoteEngine.sln --configuration Release --no-restore --logger "trx;LogFilePrefix=stage1" --results-directory artifacts/test-results
+        run: dotnet test QuoteEngine.sln --configuration Release --no-restore --logger "trx;LogFilePrefix=quote-engine" --results-directory artifacts/test-results
       - name: Test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stage1-test-results
+          name: quote-engine-test-results
           path: artifacts/test-results/*.trx

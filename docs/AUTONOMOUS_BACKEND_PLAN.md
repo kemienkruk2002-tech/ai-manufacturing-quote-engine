@@ -97,7 +97,7 @@ After H1:
 - keep `/health` and `/openapi/v1.json` public intentionally;
 - metadata/integration tests and full CI.
 
-### B1.H3 GitHub branch/CI guardrails — READY
+### B1.H3 GitHub branch/CI guardrails — DONE (external admin blocker #8)
 
 When repository-admin tooling supports it:
 - require CI before merge to `main`;
@@ -115,7 +115,7 @@ Do not guess the production identity provider. Production remains fail-closed un
 
 Goal: create a complete backend RFQ lifecycle independent of AI.
 
-### B2.1 Customer/contact model
+### B2.1 Customer/contact model — READY
 - migration for customers and contacts;
 - tenant-scoped unique rules;
 - repository + domain records;
