@@ -19,11 +19,11 @@ Mode: autonomous backend-first development
 
 Current task: **B2.2 RFQ create/read/list**
 
-Status: CI_PENDING
+Status: BLOCKED_CI_INFRASTRUCTURE
 
 Branch: `auto/b2-2-rfq-crud`
 PR: #11
-CI: PR run 37364396106 for head `025983b4a953023ebcf0e736024db984059ae46c` was cancelled after 15 minutes without a runner (`runner_id=0`, no steps executed). This is CI infrastructure/runner availability, not a test failure. A state-only commit is being used to retrigger CI; do not merge or mark DONE until a run executes and is green.
+CI: two consecutive PR heads have failed to obtain a GitHub-hosted runner. Run `37364396106` and retrigger run `37370264575` each waited about 15 minutes, then the only `test` job was cancelled with `runner_id=0` and zero executed steps. No code or test failure has executed. Do not merge or mark DONE until GitHub Actions actually runs and is green.
 
 ## Execution rule
 
@@ -34,6 +34,7 @@ A task becomes DONE only after GitHub Actions passes.
 
 ## Known blockers
 
+- **GitHub Actions runner availability currently blocks B2.2 completion:** two consecutive PR runs were cancelled before runner assignment; no steps executed.
 - Production identity provider is BLOCKED on deployment decisions; Production authentication remains fail-closed.
 - PricingEngineV1 is BLOCKED on business policy. Do not guess it.
 - Geometry golden work is BLOCKED until representative STEP fixtures/expected outputs are supplied or a safe public fixture strategy is explicitly adopted.
@@ -72,12 +73,13 @@ A task becomes DONE only after GitHub Actions passes.
 
 ## Current run findings
 
-- Continued B2.2 because PR #11 was still open and required CI verification before any new task.
-- GitHub Actions run 37364396106 concluded `failure`, but its only job concluded `cancelled`, had `runner_id=0`, and executed zero steps; therefore there is no code/test failure to fix from that run.
-- No production/domain behavior was changed in response to the infrastructure cancellation.
-- B2.2 implementation remains: tenant-scoped repository; POST/GET/list endpoints; status/customer/due-date filters; nullable draft semantics; focused persistence/API tests.
-- A documentation-only commit retriggers the PR workflow. Task remains CI_PENDING until GitHub Actions actually executes successfully.
+- Continued B2.2 because PR #11 is still open and required CI verification before any new task.
+- Latest head `c15f233e6059a6789683c43e13da568121ee085e` produced run `37370264575`.
+- Run `37370264575` did not execute tests: its only `test` job was cancelled after approximately 15 minutes with `runner_id=0`, empty runner name, and `steps=[]`.
+- This independently reproduces the same infrastructure symptom as previous run `37364396106`; therefore there is still no concrete code/test failure to repair.
+- Repeated state-only retriggers are no longer useful; B2.2 is explicitly blocked on GitHub-hosted runner availability.
+- No production/domain code, deterministic engines, snapshots, hashes, histories, migration history, tenant isolation, or policy was changed in response to the infrastructure failure.
 
 ## Exact next task
 
-**B2.2 CI follow-up** — inspect the newest PR #11 head/run first. If CI executes and fails, fix only concrete failures on `auto/b2-2-rfq-crud`. If green, update this state to DONE and merge only that verified green head; then verify post-merge main CI before selecting B2.3 on a later run.
+**B2.2 CI follow-up** — inspect PR #11 and the newest workflow run first. Do not start B2.3 while B2.2 is unverified. If a workflow actually receives a runner and fails, fix only the concrete failure. If it executes green, update this state to DONE and merge exactly that verified head, then verify post-merge main CI before selecting the next task on a later run.
