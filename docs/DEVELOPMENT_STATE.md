@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.H1 Calculation-run concurrent idempotency**
 
-Status: IN_PROGRESS
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -85,8 +85,18 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 - P1 operational finding: `main` is unprotected.
 - Production OIDC/JWT provider remains intentionally blocked rather than guessed.
 
-## Next task
 
-**B1.H1 Calculation-run concurrent idempotency — IN_PROGRESS**
 
-Investigate the observed `calculation_runs_pkey` race, add repeatable stress coverage, repair idempotent persistence without changing calculation formulas/hashes, and prove stable-ID collisions with different calculation content are not silently accepted.
+### B1.H1 implementation pending PR CI
+
+- Branch: `auto/b1-h1-calculation-idempotency`.
+- Root cause confirmed: `calculation_runs.id` is deterministic from the first 32 hash characters, while the previous targeted `ON CONFLICT (tenant_id,quote_snapshot_id,engine_version,calculation_hash)` did not arbitrate a simultaneous primary-key conflict.
+- Insert now uses PostgreSQL `ON CONFLICT DO NOTHING` without a conflict target so all usable unique conflicts can be handled atomically.
+- After a skipped insert, persistence verifies the exact natural calculation key and deterministic ID before reusing the stored result.
+- A primary-key conflict belonging to a different full calculation hash throws explicit `CALCULATION_ID_COLLISION` instead of silently accepting the row.
+- Determinism check for equal calculation hash/result remains enforced.
+- Existing calculation formulas, canonical serialization and calculation hash generation are unchanged.
+- Repeated concurrency coverage: 4 rounds x 8 concurrent calculations, each proving exactly one snapshot link, one calculation run and one 8-operation result set.
+- Added a full-hash collision test with identical first 32 hex characters to prove stable-ID collisions are rejected.
+- Current branch verification: **641 unit + 167 integration = 808/808 PASS**.
+- Primary reference: PostgreSQL current/16 INSERT documentation: `ON CONFLICT DO NOTHING` may omit the conflict target, in which case conflicts with all usable unique constraints/indexes are handled.
