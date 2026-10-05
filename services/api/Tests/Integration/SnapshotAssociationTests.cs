@@ -172,29 +172,76 @@ public sealed class SnapshotAssociationTests(PostgresFixture db)
     }
 
     [Fact]
-    public async Task Concurrent_same_request_calculations_create_one_snapshot_link_run_and_operation_set()
+    public async Task Concurrent_same_request_calculations_are_idempotent_across_repeated_rounds()
     {
-        var requestId = Id(107);
-        await CreateRequestAsync(requestId, 177);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-        var request = GoldenCase.Request with { QuoteRequestId = requestId };
-        var results = await Task.WhenAll(Enumerable.Range(0, 8)
-            .Select(index => Service.CalculateAsync(request, $"association-concurrent-{index}", deadline.Token)));
-        Assert.All(results, result => Assert.Equal(CalculationStatus.Success, result.Status));
-        var snapshotHash = Assert.Single(results.Select(x => x.SnapshotHash).Distinct(StringComparer.Ordinal));
-        var calculationHash = Assert.Single(results.Select(x => x.CalculationHash).Distinct(StringComparer.Ordinal));
-        Assert.Equal(1L, await CountLinksAsync(requestId));
+        for (var round = 0; round < 4; round++)
+        {
+            var requestId = Id(107 + round);
+            await CreateRequestAsync(requestId, 211 + round);
+            var request = GoldenCase.Request with { QuoteRequestId = requestId };
+            var results = await Task.WhenAll(Enumerable.Range(0, 8)
+                .Select(index => Service.CalculateAsync(request,
+                    $"association-concurrent-{round}-{index}", deadline.Token)));
+
+            Assert.All(results, result => Assert.Equal(CalculationStatus.Success, result.Status));
+            var snapshotHash = Assert.Single(results.Select(x => x.SnapshotHash).Distinct(StringComparer.Ordinal));
+            var calculationHash = Assert.Single(results.Select(x => x.CalculationHash).Distinct(StringComparer.Ordinal));
+            Assert.Equal(1L, await CountLinksAsync(requestId));
+            Assert.Equal(1L, await ScalarAsync<long>("""
+                SELECT count(*) FROM quote_snapshots WHERE tenant_id=@tenant AND snapshot_hash=@hash
+                """, ("tenant", PostgresFixture.TenantId), ("hash", snapshotHash)));
+            Assert.Equal(1L, await ScalarAsync<long>("""
+                SELECT count(*) FROM calculation_runs WHERE tenant_id=@tenant AND calculation_hash=@hash
+                """, ("tenant", PostgresFixture.TenantId), ("hash", calculationHash)));
+            Assert.Equal(8L, await ScalarAsync<long>("""
+                SELECT count(*) FROM calculation_operation_results result
+                JOIN calculation_runs run ON run.tenant_id=result.tenant_id AND run.id=result.calculation_run_id
+                WHERE run.tenant_id=@tenant AND run.calculation_hash=@hash
+                """, ("tenant", PostgresFixture.TenantId), ("hash", calculationHash)));
+        }
+    }
+
+    [Fact]
+    public async Task Stable_id_collision_with_different_full_hash_is_rejected_explicitly()
+    {
+        var requestId = Id(120);
+        await CreateRequestAsync(requestId, 223);
+        var prepared = await new SnapshotInputRepository(db.DataSource)
+            .BuildAsync(GoldenCase.Request with { QuoteRequestId = requestId });
+        var stored = await new QuoteSnapshotRepository(db.DataSource).GetOrCreateAsync(requestId, prepared);
+        var replay = CalculationService.Replay(stored);
+        var repository = new CalculationRunRepository(db.DataSource);
+        var started = new DateTimeOffset(2026, 10, 5, 17, 0, 0, TimeSpan.Zero);
+        var resultJson = CalculationService.SerializeResult(replay.Time, replay.Stock);
+        var firstHash = replay.CalculationHash;
+        var replacementNibble = firstHash[32] == '0' ? '1' : '0';
+        var collidingHash = firstHash[..32] + replacementNibble + firstHash[33..];
+
+        Assert.NotEqual(firstHash, collidingHash);
+        Assert.Equal(StableId.FromHash(firstHash), StableId.FromHash(collidingHash));
+
+        var firstWrite = new CalculationWrite(stored, prepared.Payload, CalculationService.EngineVersion,
+            firstHash, replay.Time, replay.Stock, null, resultJson, "stable-id-first",
+            started, started.AddMilliseconds(1), 1m);
+        var secondWrite = firstWrite with
+        {
+            CalculationHash = collidingHash,
+            CorrelationId = "stable-id-collision"
+        };
+
+        var first = await repository.SaveAsync(firstWrite);
+        Assert.Equal(firstHash, first.CalculationHash);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => repository.SaveAsync(secondWrite));
+        Assert.Contains("CALCULATION_ID_COLLISION", error.Message, StringComparison.Ordinal);
+
         Assert.Equal(1L, await ScalarAsync<long>("""
-            SELECT count(*) FROM quote_snapshots WHERE tenant_id=@tenant AND snapshot_hash=@hash
-            """, ("tenant", PostgresFixture.TenantId), ("hash", snapshotHash)));
-        Assert.Equal(1L, await ScalarAsync<long>("""
+            SELECT count(*) FROM calculation_runs WHERE tenant_id=@tenant AND id=@id
+            """, ("tenant", PostgresFixture.TenantId), ("id", StableId.FromHash(firstHash))));
+        Assert.Equal(0L, await ScalarAsync<long>("""
             SELECT count(*) FROM calculation_runs WHERE tenant_id=@tenant AND calculation_hash=@hash
-            """, ("tenant", PostgresFixture.TenantId), ("hash", calculationHash)));
-        Assert.Equal(8L, await ScalarAsync<long>("""
-            SELECT count(*) FROM calculation_operation_results result
-            JOIN calculation_runs run ON run.tenant_id=result.tenant_id AND run.id=result.calculation_run_id
-            WHERE run.tenant_id=@tenant AND run.calculation_hash=@hash
-            """, ("tenant", PostgresFixture.TenantId), ("hash", calculationHash)));
+            """, ("tenant", PostgresFixture.TenantId), ("hash", collidingHash)));
     }
 
     private Task<int> CreateRequestAsync(Guid requestId, int quantity) => ExecuteAsync("""
