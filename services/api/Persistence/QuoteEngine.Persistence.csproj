@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Application/QuoteEngine.Application.csproj" />
+    <PackageReference Include="Npgsql" Version="8.0.8" />
+    <EmbeddedResource Include="Migrations/*.sql" />
+    <EmbeddedResource Include="Seed/*.sql" />
+  </ItemGroup>
+</Project>
