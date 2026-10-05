@@ -23,8 +23,7 @@ Status: CI_PENDING
 
 Branch: `auto/b2-2-rfq-crud`
 PR: #11
-Head: `5cf75389e5b4f06d6f24f67bbfc68b5a5e919ec9`
-CI: GitHub Actions run not yet visible immediately after PR creation; do not merge or mark DONE.
+CI: PR run 37364396106 for head `025983b4a953023ebcf0e736024db984059ae46c` was cancelled after 15 minutes without a runner (`runner_id=0`, no steps executed). This is CI infrastructure/runner availability, not a test failure. A state-only commit is being used to retrigger CI; do not merge or mark DONE until a run executes and is green.
 
 ## Execution rule
 
@@ -73,15 +72,12 @@ A task becomes DONE only after GitHub Actions passes.
 
 ## Current run findings
 
-- Continued the already-IN_PROGRESS B2.2 task rather than selecting new work.
-- Added `IQuoteRequestRepository` and `QuoteRequestFilter` using only existing persisted RFQ fields.
-- Added PostgreSQL `QuoteRequestRepository` with tenant-scoped create/find/list and deterministic list ordering.
-- Create preserves migration 007 draft semantics: `New`, `DataReview`, and `Blocked` may omit part revision/quantity; progressed statuses require both.
-- Added tenant-authorized POST/GET/list RFQ endpoints under the existing guarded tenant route group.
-- List filtering is limited to existing status, customer, and requested due-date fields; no workflow/customer policy was invented.
-- Added focused integration tests for nullable draft round-trip, tenant isolation, list filters, and progressed-status validation.
-- PR #11 published. GitHub Actions had not appeared for head `5cf75389...` at the end of this run, so task remains CI_PENDING.
+- Continued B2.2 because PR #11 was still open and required CI verification before any new task.
+- GitHub Actions run 37364396106 concluded `failure`, but its only job concluded `cancelled`, had `runner_id=0`, and executed zero steps; therefore there is no code/test failure to fix from that run.
+- No production/domain behavior was changed in response to the infrastructure cancellation.
+- B2.2 implementation remains: tenant-scoped repository; POST/GET/list endpoints; status/customer/due-date filters; nullable draft semantics; focused persistence/API tests.
+- A documentation-only commit retriggers the PR workflow. Task remains CI_PENDING until GitHub Actions actually executes successfully.
 
 ## Exact next task
 
-**B2.2 CI follow-up** — inspect PR #11 GitHub Actions first. If failed, fix only those failures on `auto/b2-2-rfq-crud`. If green, update this state to DONE and merge only with the verified green head; then verify post-merge main CI before selecting B2.3 on a later run.
+**B2.2 CI follow-up** — inspect the newest PR #11 head/run first. If CI executes and fails, fix only concrete failures on `auto/b2-2-rfq-crud`. If green, update this state to DONE and merge only that verified green head; then verify post-merge main CI before selecting B2.3 on a later run.
