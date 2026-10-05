@@ -17,7 +17,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.1 ProblemDetails/error contract**
 
-Status: IN_PROGRESS
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -48,3 +48,6 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 - Branch: `auto/b1-1-problem-details`
 - Task: B1.1 ProblemDetails/error contract
 - Reference checked: current Microsoft ASP.NET Core guidance for `AddProblemDetails`, `UseExceptionHandler` and `IExceptionHandler`.
+
+- Pull request: #1 `B1.1: standardize API ProblemDetails errors`
+- CI: pending on branch/PR
