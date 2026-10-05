@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.H1 Calculation-run concurrent idempotency**
 
-Status: READY
+Status: IN_PROGRESS
 
 ## Execution rule
 
@@ -87,6 +87,6 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 
 ## Next task
 
-**B1.H1 Calculation-run concurrent idempotency — READY**
+**B1.H1 Calculation-run concurrent idempotency — IN_PROGRESS**
 
 Investigate the observed `calculation_runs_pkey` race, add repeatable stress coverage, repair idempotent persistence without changing calculation formulas/hashes, and prove stable-ID collisions with different calculation content are not silently accepted.
