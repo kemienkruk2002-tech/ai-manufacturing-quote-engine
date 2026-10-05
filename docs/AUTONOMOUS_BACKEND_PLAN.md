@@ -1,0 +1,301 @@
+# Autonomous Backend Development Plan
+
+Status: ACTIVE
+Started: 2026-10-05
+Scope: backend-first. Do not start frontend until the backend gates below are complete.
+Source of truth: repository code/tests + docs/PROJECT_AUDIT_2026-10-05.md + this file.
+
+## Operating model
+
+Development proceeds in small, independently testable increments. Each increment must:
+1. read the current state before changing code;
+2. choose the smallest unblocked task;
+3. research current primary technical references when needed;
+4. implement only that task and its required dependencies;
+5. add or update tests;
+6. push to GitHub;
+7. verify GitHub Actions;
+8. update DEVELOPMENT_STATE.md;
+9. never mark a task DONE unless CI is green;
+10. after every completed milestone, perform a focused audit and generate the next small milestone.
+
+Frozen unless a failing test or versioned business rule requires a change:
+- TimeEngineV1
+- StockEngineV1
+- CostEngineV1
+- canonical snapshot/hash/replay
+- W07044 golden case
+- immutable RFQ file history
+- CanonicalRFQ v1 contracts
+- existing migration history
+
+Never invent business policy. If an item requires unknown pricing, margin, approval, customer or production rules, mark it BLOCKED and continue with the next independent backend task.
+
+## Milestone B1 — API foundation and production boundaries
+
+Goal: make Host a stable production API surface before adding more business flows.
+
+### B1.1 ProblemDetails/error contract
+- introduce one consistent production error envelope;
+- map DomainValidationException and MissingSnapshotInputException;
+- map known RFQ file errors without leaking internals;
+- include correlation_id;
+- preserve current endpoint behavior where contractually required;
+- integration tests for 400/404/409/422/500-safe paths.
+
+Acceptance: all production endpoints return predictable machine-readable errors and CI remains green.
+
+### B1.2 OpenAPI
+- enable API metadata/OpenAPI for production routes;
+- document RFQ file endpoints and health;
+- exclude dev-only golden endpoint from production docs;
+- smoke test schema generation.
+
+Acceptance: API schema can be generated without starting external services other than configured test DB where required.
+
+### B1.3 Tenant context boundary
+- stop treating arbitrary URL tenantId as trusted identity;
+- add ITenantContext abstraction;
+- retain explicit route tenant only as resource identifier/check;
+- test mismatch behavior;
+- no real external identity provider yet.
+
+Acceptance: application services receive tenant identity from a single trusted abstraction.
+
+### B1.4 Authorization seam
+- add authorization policy hooks around tenant RFQ endpoints;
+- make auth provider replaceable;
+- provide deterministic test authentication only in tests/development;
+- do not hard-code vendor-specific auth business logic into Domain/Application.
+
+Acceptance: unauthorized/cross-tenant access is rejected before repository execution.
+
+### B1 audit
+Audit API consistency, leakage, tenant isolation, regression, and CI. Update plan before B2.
+
+## Milestone B2 — Real RFQ backend
+
+Goal: create a complete backend RFQ lifecycle independent of AI.
+
+### B2.1 Customer/contact model
+- migration for customers and contacts;
+- tenant-scoped unique rules;
+- repository + domain records;
+- no guessed CRM fields.
+
+### B2.2 RFQ create/read/list
+- create draft RFQ;
+- fetch RFQ;
+- list/filter by status/date/customer;
+- preserve nullable part/quantity for early draft.
+
+### B2.3 RFQ deterministic state machine
+- explicit allowed transitions;
+- invalid transitions rejected;
+- audit every transition;
+- requirements for READY_FOR_ANALYSIS / READY_FOR_CALC encoded explicitly.
+
+### B2.4 RFQ update/version semantics
+- editable draft fields with optimistic/concurrency protection;
+- changes after analysis create a new revision/snapshot rather than mutating history;
+- tests for simultaneous updates.
+
+### B2.5 File manifest endpoints
+- list logical documents and immutable versions;
+- source references;
+- file metadata attached to RFQ workspace model.
+
+### B2 audit
+Run full DB/API audit, replay old snapshots, tenant-isolation review, and CI. Generate B3 tasks from findings.
+
+## Milestone B3 — AI RFQ extraction wired end-to-end
+
+Goal: turn the already-tested AI library into a controlled production backend feature.
+
+### B3.1 AI configuration + DI
+- register HttpClient, OpenAiResponsesProviderV1, retry wrapper and AiGatewayV1;
+- configuration validation;
+- no API key in repository/logs;
+- AI can be disabled per environment.
+
+### B3.2 Deterministic AI input normalization
+- canonicalize normalized JSON before fingerprinting;
+- prove semantically identical supported inputs generate identical fingerprints;
+- do not broaden CanonicalRFQ schema silently.
+
+### B3.3 AI execution policy
+- allow_external_ai flag;
+- permitted use cases/models/document types;
+- redaction seam;
+- bounded payload limits;
+- failure => REVIEW/MANUAL, never invented fallback.
+
+### B3.4 RFQ extraction service
+- create normalized extraction input from explicitly selected RFQ sources;
+- execute gateway;
+- persist request fingerprint, prompt/schema/model versions and result status;
+- no direct writes to final cost/time/price fields.
+
+### B3.5 Persist CanonicalRFQ draft
+- new immutable extraction attempt/history tables;
+- current reviewed draft separate from raw provider output;
+- source lineage retained;
+- conflict/missing fields remain explicit.
+
+### B3.6 Review/confirmation backend
+- confirm/reject/correct extracted fields;
+- every correction records actor/source/reason;
+- critical unresolved CONFLICT/MISSING blocks progression.
+
+### B3 audit
+Security/privacy audit, hallucination/fallback audit, reproducibility audit, load/idempotency tests and CI.
+
+## Milestone B4 — RFQ file security
+
+Goal: make untrusted customer uploads production-safe.
+
+### B4.1 Content-type verification
+- do not trust Content-Type header alone;
+- magic/signature detection for supported file types.
+
+### B4.2 Archive policy
+- bounded ZIP expansion;
+- max file count, total bytes, recursion depth;
+- block executable payloads and path traversal.
+
+### B4.3 Malware scanning seam
+- provider-neutral scanner interface;
+- quarantine/reject state;
+- local/test fake scanner;
+- external implementation can be plugged in later.
+
+### B4.4 Object storage abstraction hardening
+- keep local store for development/tests;
+- prepare S3-compatible implementation boundary;
+- integrity verification on reads.
+
+### B4 audit
+Abuse-case review, upload fuzz/boundary tests, CI.
+
+## Milestone B5 — Calculation API
+
+Goal: expose the deterministic calculation engine through real RFQ/quote APIs instead of only the golden dev endpoint.
+
+### B5.1 Calculation readiness service
+- explain blockers: missing part, quantity, route, rate, material cost, conflict.
+
+### B5.2 Calculate RFQ endpoint
+- construct SnapshotRequest from approved/versioned configuration;
+- persist/reuse immutable snapshot and calculation;
+- return calculation trace.
+
+### B5.3 Historical replay endpoint
+- retrieve a historical calculation;
+- replay and verify hash/result integrity.
+
+### B5.4 Quantity scenarios
+- calculate requested quantity variants from the same approved configuration;
+- do not introduce sale pricing.
+
+### B5 audit
+Regression against W07044, precision, concurrency, historical replay, CI.
+
+## Milestone B6 — Commercial domain skeleton
+
+Goal: create quote/version/approval infrastructure without inventing pricing policy.
+
+### B6.1 Quote + QuoteVersion model
+- immutable calculated versions;
+- references to exact RFQ/cost snapshot;
+- statuses and audit.
+
+### B6.2 Pricing policy contract
+- interfaces/value objects/version model only;
+- no guessed margins or formulas.
+
+### B6.3 Approval model
+- approval events and required-decision representation;
+- actual thresholds remain configuration/business inputs.
+
+### B6.4 BLOCKED gate: PricingEngineV1
+Requires confirmed policy for margin/markup, rounding, minimum value, quantity breaks, discounts, risk reserve, currency/FX and external cost components.
+
+### B6 audit
+Verify no implicit pricing assumptions entered code.
+
+## Milestone B7 — Geometry backend
+
+Start only when representative STEP fixtures and expected outputs are available.
+
+- geometry worker service boundary;
+- deterministic geometry schema;
+- STEP unit detection;
+- topology normalization;
+- basic dimensions/volume/surface/bounding box;
+- geometry hash;
+- golden STEP tests;
+- no LLM arithmetic.
+
+## Milestone B8 — Technology / rules backend
+
+- controlled operation vocabulary;
+- machine capability model;
+- AI technology proposal DTO;
+- deterministic feasibility/rule validator;
+- draft routing only;
+- human approval before approved routing.
+
+## Milestone B9 — Similarity / risk backend
+
+- deterministic feature vectors first;
+- historical candidate search;
+- explainable score components;
+- risk reasons/policy;
+- optional embeddings only as a secondary signal.
+
+## Milestone B10 — Quote output backend
+
+After PricingEngine is unblocked:
+- deterministic final pricing;
+- QuoteVersion finalization;
+- approval enforcement;
+- quote numbering;
+- server-side PDF generation;
+- approved email-draft payload;
+- numeric validator preventing mismatch between approved quote and outgoing draft.
+
+## Milestone B11 — Email / ERP / actuals
+
+- mailbox ingestion via official OAuth APIs;
+- idempotent message/thread model;
+- attachment manifest;
+- queue/retry/dead-letter;
+- ERP handoff/outbox;
+- production actuals import;
+- quoted-vs-actual dataset.
+
+## Frontend gate
+
+Do not start frontend until at minimum B1-B5 are complete and B6 domain contracts are stable. The backend must expose a coherent, tested API before UI work begins.
+
+## Research policy
+
+External research is allowed and encouraged when it materially improves correctness. Prefer current primary sources:
+- Microsoft/.NET/ASP.NET Core
+- PostgreSQL
+- OpenAI API documentation
+- OAuth/OIDC provider documentation
+- STEP/OpenCascade documentation
+- OWASP
+- official cloud/object-storage specifications
+
+Foreign-language and international sources are allowed. Record externally-derived architectural decisions in an ADR when they materially affect the project.
+
+## Autonomous branching rule
+
+After each milestone audit:
+- fix P0/P1 findings first;
+- split each fix into small tasks;
+- if no blocking finding exists, unlock the next milestone;
+- if a task is business-blocked, document the exact missing decision and continue with the next independent task;
+- never wait on a blocked PricingEngine if RFQ/API/security work can continue.
