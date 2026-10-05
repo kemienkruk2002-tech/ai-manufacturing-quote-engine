@@ -44,6 +44,20 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 level = LogLevel.Warning;
                 break;
 
+            case TenantContextUnavailableException:
+                statusCode = StatusCodes.Status401Unauthorized;
+                title = "Authenticated tenant context is required.";
+                code = "TENANT_CONTEXT_REQUIRED";
+                level = LogLevel.Warning;
+                break;
+
+            case TenantResourceMismatchException:
+                statusCode = StatusCodes.Status404NotFound;
+                title = "The requested resource was not found.";
+                code = "TENANT_RESOURCE_NOT_FOUND";
+                level = LogLevel.Warning;
+                break;
+
             default:
                 statusCode = StatusCodes.Status500InternalServerError;
                 title = "An unexpected error occurred.";

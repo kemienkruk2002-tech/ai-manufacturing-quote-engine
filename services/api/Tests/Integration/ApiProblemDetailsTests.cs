@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -124,8 +125,10 @@ internal sealed class ThrowingRfqFileApiFactory(string connectionString, Excepti
                 ["RfqFiles:AllowedMimeTypes:0"] = "text/plain"
             });
         });
-        builder.ConfigureServices(services =>
+        builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<ITenantContext>();
+            services.AddScoped<ITenantContext>(_ => new StaticTenantContext(PostgresFixture.TenantId));
             services.RemoveAll<IRfqFileRepository>();
             services.AddSingleton<IRfqFileRepository>(new ThrowingRfqFileRepository(exception));
         });

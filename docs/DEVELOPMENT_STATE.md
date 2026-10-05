@@ -17,7 +17,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.3 Tenant context boundary**
 
-Status: READY
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -52,31 +52,18 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 - Added centralized exception mapping, consistent ProblemDetails, stable error codes, `correlation_id`, safe 500 responses and integration coverage.
 - Reference: current Microsoft ASP.NET Core guidance for `AddProblemDetails`, `UseExceptionHandler` and `IExceptionHandler`.
 
-### Next task
-
-**B1.3 Tenant context boundary — READY**
-
-Implement API metadata/OpenAPI for production routes, exclude the dev-only golden endpoint from production documentation, add schema smoke coverage, then run full CI.
 
 
+### B1.3 implementation pending CI
 
-
-### Completed work
-
-- B1.2 OpenAPI — DONE
-- PR: #2 `B1.2: add OpenAPI schema endpoint`
-- Merge: `4b051a1a2e9ea8ae74e8e7f2231a354a33226884`
-- Verified PR CI: **638 unit + 159 integration = 797/797 PASS**
-- Verified post-merge `main` CI: PASS
-- Added deterministic OpenAPI 3.0.3 document at `/openapi/v1.json`.
-- Documented production RFQ upload/download and health operations.
-- Dev-only golden endpoint and the schema endpoint itself are excluded from the document.
-- Added smoke coverage proving schema generation succeeds without a live PostgreSQL connection.
-- No new NuGet package, no migration change, no deterministic domain-core change.
-- Primary reference: Microsoft ASP.NET Core .NET 8 OpenAPI/API Explorer guidance.
-
-### Next task
-
-**B1.3 Tenant context boundary — READY**
-
-Introduce `ITenantContext` as the trusted application boundary for tenant identity, retain route tenant IDs only as resource identifiers/checks, and add mismatch coverage without choosing a real external identity provider yet.
+- Branch: `auto/b1-3-tenant-context`
+- Added `ITenantContext` in Application and a claim-based Host implementation using authenticated `HttpContext.User`.
+- Tenant identity is read from exactly one non-empty GUID `tenant_id` claim; route `tenantId` is no longer trusted.
+- RFQ file routes compare route tenant to trusted tenant before repository access.
+- Missing trusted context => 401 `TENANT_CONTEXT_REQUIRED`.
+- Route/trusted tenant mismatch => safe 404 `TENANT_RESOURCE_NOT_FOUND`.
+- Added unit guard tests and integration coverage for missing context and mismatch.
+- Updated OpenAPI responses for tenant-bound endpoints.
+- Existing integration factories inject a deterministic test tenant context only in tests.
+- No external identity provider selected; authentication/authorization policy remains B1.4.
+- Primary reference: Microsoft ASP.NET Core guidance that `HttpContext.User` is the request `ClaimsPrincipal` populated by authentication.
