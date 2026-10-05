@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/TestResults/
+.vs/
+.idea/
+.env
+.env.*
+!.env.example
+*.user
+.local/
+artifacts/
+*.gdoc
+*.gsheet
+*.gslides
