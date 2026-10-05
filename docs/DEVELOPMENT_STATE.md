@@ -17,7 +17,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.3 Tenant context boundary**
 
-Status: READY
+Status: IN_PROGRESS
 
 ## Execution rule
 
@@ -54,7 +54,7 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 
 ### Next task
 
-**B1.3 Tenant context boundary — READY**
+**B1.3 Tenant context boundary — IN_PROGRESS**
 
 Implement API metadata/OpenAPI for production routes, exclude the dev-only golden endpoint from production documentation, add schema smoke coverage, then run full CI.
 
