@@ -138,7 +138,11 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue("Dev:Golde
         }
     });
 }
-app.MapPost("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logicalKey}",
+
+var tenantApi = app.MapGroup("/api/tenants/{tenantId:guid}")
+    .RequireAuthorization(ApiAuthorizationPolicies.TenantRfqAccess);
+
+tenantApi.MapPost("/rfqs/{quoteRequestId:guid}/files/{logicalKey}",
     async (Guid tenantId, Guid quoteRequestId, string logicalKey, HttpRequest request,
         ITenantContext tenantContext, IRfqFileRepository repository, IConfiguration configuration, CancellationToken token) =>
     {
@@ -184,10 +188,9 @@ app.MapPost("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logi
         return Results.Ok(version);
     })
     .WithName("UploadRfqFile")
-    .WithMetadata(ApiOpenApiDocumentV1.RfqFileUpload)
-    .RequireAuthorization(ApiAuthorizationPolicies.TenantRfqAccess);
+    .WithMetadata(ApiOpenApiDocumentV1.RfqFileUpload);
 
-app.MapGet("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logicalKey}/versions/{versionNo:int}",
+tenantApi.MapGet("/rfqs/{quoteRequestId:guid}/files/{logicalKey}/versions/{versionNo:int}",
     async (Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo,
         ITenantContext tenantContext, IRfqFileRepository repository, IConfiguration configuration, CancellationToken token) =>
     {
@@ -204,8 +207,7 @@ app.MapGet("/api/tenants/{tenantId:guid}/rfqs/{quoteRequestId:guid}/files/{logic
         return Results.File(content, version.MimeType ?? "application/octet-stream", version.OriginalFileName);
     })
     .WithName("DownloadRfqFileVersion")
-    .WithMetadata(ApiOpenApiDocumentV1.RfqFileDownload)
-    .RequireAuthorization(ApiAuthorizationPolicies.TenantRfqAccess);
+    .WithMetadata(ApiOpenApiDocumentV1.RfqFileDownload);
 
 app.MapGet(ApiOpenApiDocumentV1.DocumentPath, (EndpointDataSource endpoints) =>
         Results.Json(ApiOpenApiDocumentV1.Build(endpoints), contentType: ApiOpenApiDocumentV1.MediaType))
