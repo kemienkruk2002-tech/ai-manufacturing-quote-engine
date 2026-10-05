@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B2.1 Customer/contact model**
 
-Status: READY
+Status: IN_PROGRESS
 
 ## Execution rule
 
@@ -139,6 +139,6 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 
 ## Next task
 
-**B2.1 Customer/contact model — READY**
+**B2.1 Customer/contact model — IN_PROGRESS**
 
 Add the smallest tenant-scoped customer/contact persistence slice required by the RFQ backend: additive migration, minimal domain/application records and repository coverage. Do not invent CRM, pricing, approval or sales fields that are not required by the current RFQ workflow.
