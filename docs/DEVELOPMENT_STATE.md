@@ -7,7 +7,7 @@ Mode: autonomous backend-first development
 
 - Repository migrated from Google Drive.
 - Initial verified CI baseline: 638 unit + 152 integration = 790/790 passed.
-- Current verified CI: **641 unit + 168 integration = 809/809 passed**.
+- Current verified CI: **641 unit + 175 integration = 816/816 passed**.
 - Deterministic formulas/canonical hashes remain frozen unless a concrete failing test or versioned rule requires change.
 - Full project audit: docs/PROJECT_AUDIT_2026-10-05.md
 - B1 audit: docs/B1_API_FOUNDATION_AUDIT_2026-10-05.md
@@ -17,9 +17,9 @@ Mode: autonomous backend-first development
 
 **B2 — Real RFQ backend**
 
-Current task: **B2.1 Customer/contact model**
+Current task: **B2.2 RFQ create/read/list**
 
-Status: CI_PENDING
+Status: READY
 
 ## Execution rule
 
@@ -139,18 +139,24 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 
 
 
-### B2.1 implementation pending PR CI
 
-- Branch: `auto/b2-1-customer-contact`.
-- Added additive migration `008_customers_contacts.sql`.
-- Added tenant-scoped `customers` and `customer_contacts` tables with composite tenant foreign keys.
-- Added nullable `quote_requests.customer_id` with tenant-scoped FK, matching the existing source specification.
-- Did not add customer email, phone, tax id, salesperson, discount, address, CRM status or contact email because the project sources do not define those fields.
-- Domain model is intentionally minimal: `Customer(TenantId, Id, Name)` and `CustomerContact(TenantId, Id, CustomerId, Name)`.
+
+### B2.1 Customer/contact model — DONE
+
+- PR #10 `B2.1: add minimal customer and contact model`.
+- Merge: `33c1325e726aadcecbe8037916e28e75e1d35f5b`.
+- Verified PR and post-merge main CI: **641 unit + 175 integration = 816/816 PASS**.
+- Added migration 008 with tenant-scoped `customers` and `customer_contacts`.
+- Added nullable `quote_requests.customer_id` with composite tenant FK, matching docs/sources/11.txt.
+- Added minimal domain records only: customer id/tenant/name and contact id/tenant/customer/name.
+- No unsupported CRM fields were invented.
 - Added `ICustomerRepository`, Npgsql implementation and Host DI registration.
-- Repository supports create/find customer, create/find contact and deterministic contact listing by id.
-- Added integration coverage for round-trip persistence, tenant filtering, cross-tenant contact rejection, same-tenant RFQ customer reference, cross-tenant RFQ rejection and whitespace-name validation.
-- Updated migration-count regression tests from 7 to 8.
-- Existing golden seed remains customer-null and unchanged.
-- Current branch verification: **641 unit + 175 integration = 816/816 PASS**.
-- Source basis: docs/sources/11.txt specifies `Customer` and nullable `quote_requests.customer_id`; docs/sources/02.txt requires every business table to carry `tenant_id`.
+- Added integration coverage for round-trip persistence, deterministic contact listing, tenant filtering, cross-tenant contact rejection, RFQ customer FK enforcement and whitespace-name validation.
+- Existing golden seed remains customer-null; deterministic calculation core and hashes are unchanged.
+- Migration regression tests now correctly expect 8 migrations.
+
+## Next task
+
+**B2.2 RFQ create/read/list — READY**
+
+Implement the smallest production RFQ CRUD slice: create draft RFQ, get one RFQ and list/filter RFQs by existing source-backed fields only. Reuse the tenant route group and trusted tenant boundary, preserve nullable part/quantity/customer in draft states, and do not introduce a new status vocabulary or business workflow rules yet.
