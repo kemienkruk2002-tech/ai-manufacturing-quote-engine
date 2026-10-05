@@ -42,8 +42,8 @@ public sealed class TenantRouteAuthorizationMetadataTests
 
     private static void AssertPublic(IEnumerable<RouteEndpoint> endpoints, string path)
     {
-        var endpoint = Assert.Single(endpoints.Where(item =>
-            string.Equals(Normalize(item.RoutePattern.RawText), path, StringComparison.Ordinal)));
+        var endpoint = Assert.Single(endpoints, item =>
+            string.Equals(Normalize(item.RoutePattern.RawText), path, StringComparison.Ordinal));
         Assert.Empty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>());
     }
 
