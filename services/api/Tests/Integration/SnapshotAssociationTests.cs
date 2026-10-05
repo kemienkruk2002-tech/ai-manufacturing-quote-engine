@@ -219,7 +219,9 @@ public sealed class SnapshotAssociationTests(PostgresFixture db)
         var collidingHash = firstHash[..32] + replacementNibble + firstHash[33..];
 
         Assert.NotEqual(firstHash, collidingHash);
-        Assert.Equal(StableId.FromHash(firstHash), StableId.FromHash(collidingHash));
+        var firstId = Guid.ParseExact(firstHash[..32], "N");
+        var collidingId = Guid.ParseExact(collidingHash[..32], "N");
+        Assert.Equal(firstId, collidingId);
 
         var firstWrite = new CalculationWrite(stored, prepared.Payload, CalculationService.EngineVersion,
             firstHash, replay.Time, replay.Stock, null, resultJson, "stable-id-first",
@@ -238,7 +240,7 @@ public sealed class SnapshotAssociationTests(PostgresFixture db)
 
         Assert.Equal(1L, await ScalarAsync<long>("""
             SELECT count(*) FROM calculation_runs WHERE tenant_id=@tenant AND id=@id
-            """, ("tenant", PostgresFixture.TenantId), ("id", StableId.FromHash(firstHash))));
+            """, ("tenant", PostgresFixture.TenantId), ("id", firstId)));
         Assert.Equal(0L, await ScalarAsync<long>("""
             SELECT count(*) FROM calculation_runs WHERE tenant_id=@tenant AND calculation_hash=@hash
             """, ("tenant", PostgresFixture.TenantId), ("hash", collidingHash)));
