@@ -18,7 +18,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.4 Authorization seam**
 
-Status: READY
+Status: IN_PROGRESS
 
 ## Execution rule
 
@@ -78,6 +78,6 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 
 ## Next task
 
-**B1.4 Authorization seam — READY**
+**B1.4 Authorization seam — IN_PROGRESS**
 
 Add replaceable authorization policy hooks to tenant-bound RFQ endpoints, use deterministic test/development authentication only for tests/dev, and ensure unauthenticated or cross-tenant access is rejected before repository execution without selecting a vendor-specific production identity provider.
