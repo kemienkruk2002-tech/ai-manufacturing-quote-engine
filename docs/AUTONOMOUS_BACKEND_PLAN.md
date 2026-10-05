@@ -115,13 +115,13 @@ Do not guess the production identity provider. Production remains fail-closed un
 
 Goal: create a complete backend RFQ lifecycle independent of AI.
 
-### B2.1 Customer/contact model — READY
+### B2.1 Customer/contact model — DONE
 - migration for customers and contacts;
 - tenant-scoped unique rules;
 - repository + domain records;
 - no guessed CRM fields.
 
-### B2.2 RFQ create/read/list
+### B2.2 RFQ create/read/list — READY
 - create draft RFQ;
 - fetch RFQ;
 - list/filter by status/date/customer;
