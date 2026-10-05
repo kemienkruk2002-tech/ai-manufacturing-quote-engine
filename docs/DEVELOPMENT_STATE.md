@@ -18,7 +18,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.4 Authorization seam**
 
-Status: IN_PROGRESS
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -76,8 +76,19 @@ Geometry golden work is BLOCKED until representative STEP fixtures/expected outp
 - No external identity provider was selected; this remains intentionally deferred to B1.4.
 - Primary reference: Microsoft ASP.NET Core documentation for `HttpContext.User` / ClaimsPrincipal and claim-based authorization.
 
-## Next task
 
-**B1.4 Authorization seam — IN_PROGRESS**
 
-Add replaceable authorization policy hooks to tenant-bound RFQ endpoints, use deterministic test/development authentication only for tests/dev, and ensure unauthenticated or cross-tenant access is rejected before repository execution without selecting a vendor-specific production identity provider.
+### B1.4 implementation pending PR CI
+
+- Branch: `auto/b1-4-authorization-seam`
+- Added named `TenantRfqAccess` authorization policy and applied it to tenant-bound RFQ file endpoints with `RequireAuthorization`.
+- Policy requires an authenticated principal with exactly one valid non-empty GUID `tenant_id` claim.
+- Production defaults to a fail-closed authentication scheme that never authenticates until a real provider is configured.
+- Development uses an explicit `X-Dev-Tenant-Id` authentication scheme; production ignores that header.
+- Integration tests use a separate test-only authentication scheme and exercise the real Authentication -> Authorization -> ClaimsTenantContext pipeline.
+- Verified rejection before repository access: unauthenticated => 401, authenticated without tenant claim => 403, cross-tenant route => safe 404.
+- Matching tenant reaches the repository.
+- OpenAPI now documents 401/403 for tenant RFQ routes.
+- Current branch verification: **641 unit + 166 integration = 807/807 PASS** on rerun of SHA `5c2661856ff8809683450e48ab195f4f7f3d7946`.
+- First run of that SHA exposed an existing intermittent `SnapshotAssociationTests.Concurrent_same_request_calculations_create_one_snapshot_link_run_and_operation_set` duplicate-PK race; rerun passed unchanged. Record for B1 audit; do not alter frozen calculation core in B1.4.
+- Primary references: Microsoft ASP.NET Core Minimal API `RequireAuthorization` and policy-based authorization documentation.
