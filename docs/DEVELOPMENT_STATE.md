@@ -7,7 +7,8 @@ Mode: autonomous backend-first development
 
 - Repository migrated from Google Drive.
 - Initial verified CI baseline: 638 unit + 152 integration = 790/790 passed.
-- Current verified main CI: **641 unit + 175 integration = 816/816 passed**.
+- Current verified main CI before B2.2: **641 unit + 175 integration = 816/816 passed**.
+- B2.2 verified PR CI: **641 unit + 179 integration = 820/820 passed**.
 - Deterministic formulas/canonical hashes remain frozen unless a concrete failing test or versioned rule requires change.
 - Full project audit: docs/PROJECT_AUDIT_2026-10-05.md
 - B1 audit: docs/B1_API_FOUNDATION_AUDIT_2026-10-05.md
@@ -19,11 +20,11 @@ Mode: autonomous backend-first development
 
 Current task: **B2.2 RFQ create/read/list**
 
-Status: BLOCKED_CI_INFRASTRUCTURE
+Status: DONE_PR_GREEN
 
 Branch: `auto/b2-2-rfq-crud`
 PR: #11
-CI: two consecutive PR heads have failed to obtain a GitHub-hosted runner. Run `37364396106` and retrigger run `37370264575` each waited about 15 minutes, then the only `test` job was cancelled with `runner_id=0` and zero executed steps. No code or test failure has executed. Do not merge or mark DONE until GitHub Actions actually runs and is green.
+CI: run `37377922203` completed successfully for head `b234374c49a18b0ef51bf5b53b1a524d0be7b8b9`; `test` executed on a GitHub-hosted runner and passed 641 unit + 179 integration = 820/820, 0 failed, 0 skipped.
 
 ## Execution rule
 
@@ -34,7 +35,6 @@ A task becomes DONE only after GitHub Actions passes.
 
 ## Known blockers
 
-- **GitHub Actions runner availability currently blocks B2.2 completion:** two consecutive PR runs were cancelled before runner assignment; no steps executed.
 - Production identity provider is BLOCKED on deployment decisions; Production authentication remains fail-closed.
 - PricingEngineV1 is BLOCKED on business policy. Do not guess it.
 - Geometry golden work is BLOCKED until representative STEP fixtures/expected outputs are supplied or a safe public fixture strategy is explicitly adopted.
@@ -70,16 +70,22 @@ A task becomes DONE only after GitHub Actions passes.
 - PR #9; 809/809 PASS; branch protection mutation remains external blocker issue #8.
 ### B2.1 Customer/contact model — DONE
 - PR #10; merge `33c1325e726aadcecbe8037916e28e75e1d35f5b`; 816/816 PASS.
+### B2.2 RFQ create/read/list — DONE (green PR head)
+- PR #11.
+- Verified run `37377922203`: **641 unit + 179 integration = 820/820 PASS**.
+- Added tenant-scoped RFQ create/get/list persistence and API surface.
+- Reused existing status vocabulary and database-backed draft/progress constraints; no workflow policy was invented.
+- Preserved nullable part revision, requested quantity and customer for early draft semantics.
+- Added filters only for existing status/customer/due-date fields and focused persistence/API coverage.
 
 ## Current run findings
 
-- Continued B2.2 because PR #11 is still open and required CI verification before any new task.
-- Latest head `c15f233e6059a6789683c43e13da568121ee085e` produced run `37370264575`.
-- Run `37370264575` did not execute tests: its only `test` job was cancelled after approximately 15 minutes with `runner_id=0`, empty runner name, and `steps=[]`.
-- This independently reproduces the same infrastructure symptom as previous run `37364396106`; therefore there is still no concrete code/test failure to repair.
-- Repeated state-only retriggers are no longer useful; B2.2 is explicitly blocked on GitHub-hosted runner availability.
-- No production/domain code, deterministic engines, snapshots, hashes, histories, migration history, tenant isolation, or policy was changed in response to the infrastructure failure.
+- Started by inspecting the previously blocked PR #11 before any new task.
+- The runner-availability blocker cleared: run `37377922203` received a hosted runner and executed the complete workflow successfully.
+- CI passed 641 unit tests and 179 real PostgreSQL integration tests, 820/820 total, with no failures or skips.
+- Expected PostgreSQL errors in the service log are negative-path integrity tests and did not fail the suite.
+- No B2.3 work was started in this run; only the already-implemented B2.2 slice was verified and its state recorded.
 
 ## Exact next task
 
-**B2.2 CI follow-up** — inspect PR #11 and the newest workflow run first. Do not start B2.3 while B2.2 is unverified. If a workflow actually receives a runner and fails, fix only the concrete failure. If it executes green, update this state to DONE and merge exactly that verified head, then verify post-merge main CI before selecting the next task on a later run.
+**Post-merge B2.2 verification** — merge PR #11 only at the green verified head after this state commit receives green CI as part of the same PR. Then verify `main` GitHub Actions. Only after green post-merge main CI may a later run select B2.3 RFQ deterministic state machine.
