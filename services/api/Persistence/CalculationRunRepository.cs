@@ -28,7 +28,7 @@ public sealed class CalculationRunRepository(NpgsqlDataSource dataSource) : ICal
             INSERT INTO calculation_runs(id,tenant_id,quote_snapshot_id,engine_version,time_engine_version,stock_engine_version,
                 cost_engine_version,calculation_hash,status,started_at,finished_at,error_code,result_json,correlation_id,duration_ms)
             VALUES(@id,@tenant,@snapshot,@engine,@time,@stock,@cost,@hash,@status,@started,@finished,@error,@json,@correlation,@duration)
-            ON CONFLICT (tenant_id,quote_snapshot_id,engine_version,calculation_hash) DO NOTHING RETURNING id
+            ON CONFLICT DO NOTHING RETURNING id
             """, connection))
         {
             command.Parameters.AddWithValue("id", id);
@@ -49,61 +49,75 @@ public sealed class CalculationRunRepository(NpgsqlDataSource dataSource) : ICal
             command.Parameters.AddWithValue("duration", calculation.DurationMs);
             inserted = await command.ExecuteScalarAsync(cancellationToken) is Guid;
         }
-        if (inserted)
+        if (!inserted)
         {
-            var costByOperation = calculation.CostResult?.OperationResults
-                .ToDictionary(x => x.OperationNo, StringComparer.Ordinal);
-            foreach (var operation in calculation.TimeResult.OperationResults)
+            var existing = await FindExactAsync(connection, tenant, calculation.Snapshot.Id,
+                calculation.EngineVersion, calculation.CalculationHash, cancellationToken);
+            if (existing is null)
             {
-                CostOperationTrace? costOperation = null;
-                if (costByOperation is not null)
-                    costByOperation.TryGetValue(operation.OperationNo, out costOperation);
-                await using var command = new NpgsqlCommand("""
-                    INSERT INTO calculation_operation_results(id,tenant_id,calculation_run_id,process_operation_id,
-                        operation_no,sequence_no,quantity,unit_tj_sec,batch_tpz_min,unit_tpz_sec,unit_labor_sec,
-                        rate_overall_pln_h,rate_tpz_pln_h,tj_cost_unit,tpz_cost_unit,labor_cost_unit)
-                    SELECT @id,@tenant,@run,o.id,@number,@sequence,@quantity,@tj,@tpz,@unit_tpz,@labor,
-                        @rate_overall,@rate_tpz,@tj_cost,@tpz_cost,@labor_cost
-                    FROM process_operations o
-                    WHERE o.tenant_id=@tenant AND o.route_id=@source_route AND o.operation_no=@number
-                    """, connection);
-                command.Parameters.AddWithValue("id", StableId.FromText(calculation.CalculationHash + "|" + operation.OperationNo));
-                command.Parameters.AddWithValue("tenant", tenant);
-                command.Parameters.AddWithValue("run", id);
-                command.Parameters.AddWithValue("number", operation.OperationNo);
-                command.Parameters.AddWithValue("sequence", operation.SequenceNo);
-                command.Parameters.AddWithValue("quantity", calculation.TimeResult.Quantity);
-                command.Parameters.AddWithValue("tj", operation.UnitTjSec);
-                command.Parameters.AddWithValue("tpz", operation.BatchTpzMin);
-                command.Parameters.AddWithValue("unit_tpz", operation.UnitTpzSec);
-                command.Parameters.AddWithValue("labor", operation.UnitLaborSec);
-                command.Parameters.AddWithValue("rate_overall", NpgsqlDbType.Numeric,
-                    (object?)costOperation?.RateOverallPlnH ?? DBNull.Value);
-                command.Parameters.AddWithValue("rate_tpz", NpgsqlDbType.Numeric,
-                    (object?)costOperation?.RateTpzPlnH ?? DBNull.Value);
-                command.Parameters.AddWithValue("tj_cost", NpgsqlDbType.Numeric,
-                    (object?)costOperation?.TjCostUnit ?? DBNull.Value);
-                command.Parameters.AddWithValue("tpz_cost", NpgsqlDbType.Numeric,
-                    (object?)costOperation?.TpzCostUnit ?? DBNull.Value);
-                command.Parameters.AddWithValue("labor_cost", NpgsqlDbType.Numeric,
-                    (object?)costOperation?.LaborCostUnit ?? DBNull.Value);
-                command.Parameters.AddWithValue("source_route", calculation.Snapshot.SourceRouteId);
-                if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
-                    throw new InvalidOperationException("Historical operation reference could not be resolved uniquely.");
+                var byId = await FindByIdAsync(connection, tenant, id, cancellationToken);
+                if (byId is not null)
+                    throw new InvalidOperationException(
+                        "CALCULATION_ID_COLLISION: deterministic calculation id is already used by a different calculation hash.");
+                throw new InvalidOperationException("Calculation insert/read failed after conflict.");
             }
+            if (existing.Id != id)
+                throw new InvalidOperationException(
+                    "CALCULATION_ID_MISMATCH: calculation hash resolved to an unexpected stored id.");
+            if (!StringComparer.Ordinal.Equals(existing.ResultJson, calculation.ResultJson))
+                throw new InvalidOperationException(
+                    "DETERMINISM_VIOLATION: the same calculation hash produced different results.");
+            await transaction.CommitAsync(cancellationToken);
+            return existing;
         }
-        await using var read = new NpgsqlCommand("""
-            SELECT id,quote_snapshot_id,calculation_hash,engine_version,result_json,status FROM calculation_runs
-            WHERE tenant_id=@tenant AND calculation_hash=@hash
-            """, connection);
-        read.Parameters.AddWithValue("tenant", tenant);
-        read.Parameters.AddWithValue("hash", calculation.CalculationHash);
-        StoredCalculation stored;
-        await using (var reader = await read.ExecuteReaderAsync(cancellationToken))
+
+        var costByOperation = calculation.CostResult?.OperationResults
+            .ToDictionary(x => x.OperationNo, StringComparer.Ordinal);
+        foreach (var operation in calculation.TimeResult.OperationResults)
         {
-            if (!await reader.ReadAsync(cancellationToken)) throw new InvalidOperationException("Calculation insert/read failed.");
-            stored = Read(reader, tenant);
+            CostOperationTrace? costOperation = null;
+            if (costByOperation is not null)
+                costByOperation.TryGetValue(operation.OperationNo, out costOperation);
+            await using var command = new NpgsqlCommand("""
+                INSERT INTO calculation_operation_results(id,tenant_id,calculation_run_id,process_operation_id,
+                    operation_no,sequence_no,quantity,unit_tj_sec,batch_tpz_min,unit_tpz_sec,unit_labor_sec,
+                    rate_overall_pln_h,rate_tpz_pln_h,tj_cost_unit,tpz_cost_unit,labor_cost_unit)
+                SELECT @id,@tenant,@run,o.id,@number,@sequence,@quantity,@tj,@tpz,@unit_tpz,@labor,
+                    @rate_overall,@rate_tpz,@tj_cost,@tpz_cost,@labor_cost
+                FROM process_operations o
+                WHERE o.tenant_id=@tenant AND o.route_id=@source_route AND o.operation_no=@number
+                """, connection);
+            command.Parameters.AddWithValue("id", StableId.FromText(calculation.CalculationHash + "|" + operation.OperationNo));
+            command.Parameters.AddWithValue("tenant", tenant);
+            command.Parameters.AddWithValue("run", id);
+            command.Parameters.AddWithValue("number", operation.OperationNo);
+            command.Parameters.AddWithValue("sequence", operation.SequenceNo);
+            command.Parameters.AddWithValue("quantity", calculation.TimeResult.Quantity);
+            command.Parameters.AddWithValue("tj", operation.UnitTjSec);
+            command.Parameters.AddWithValue("tpz", operation.BatchTpzMin);
+            command.Parameters.AddWithValue("unit_tpz", operation.UnitTpzSec);
+            command.Parameters.AddWithValue("labor", operation.UnitLaborSec);
+            command.Parameters.AddWithValue("rate_overall", NpgsqlDbType.Numeric,
+                (object?)costOperation?.RateOverallPlnH ?? DBNull.Value);
+            command.Parameters.AddWithValue("rate_tpz", NpgsqlDbType.Numeric,
+                (object?)costOperation?.RateTpzPlnH ?? DBNull.Value);
+            command.Parameters.AddWithValue("tj_cost", NpgsqlDbType.Numeric,
+                (object?)costOperation?.TjCostUnit ?? DBNull.Value);
+            command.Parameters.AddWithValue("tpz_cost", NpgsqlDbType.Numeric,
+                (object?)costOperation?.TpzCostUnit ?? DBNull.Value);
+            command.Parameters.AddWithValue("labor_cost", NpgsqlDbType.Numeric,
+                (object?)costOperation?.LaborCostUnit ?? DBNull.Value);
+            command.Parameters.AddWithValue("source_route", calculation.Snapshot.SourceRouteId);
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+                throw new InvalidOperationException("Historical operation reference could not be resolved uniquely.");
         }
+
+        var stored = await FindExactAsync(connection, tenant, calculation.Snapshot.Id,
+            calculation.EngineVersion, calculation.CalculationHash, cancellationToken)
+            ?? throw new InvalidOperationException("Calculation insert/read failed.");
+        if (stored.Id != id)
+            throw new InvalidOperationException(
+                "CALCULATION_ID_MISMATCH: calculation hash resolved to an unexpected stored id.");
         if (!StringComparer.Ordinal.Equals(stored.ResultJson, calculation.ResultJson))
             throw new InvalidOperationException("DETERMINISM_VIOLATION: the same calculation hash produced different results.");
         await transaction.CommitAsync(cancellationToken);
@@ -118,6 +132,34 @@ public sealed class CalculationRunRepository(NpgsqlDataSource dataSource) : ICal
             """);
         command.Parameters.AddWithValue("tenant", tenantId);
         command.Parameters.AddWithValue("hash", calculationHash);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? Read(reader, tenantId) : null;
+    }
+
+    private static async Task<StoredCalculation?> FindExactAsync(NpgsqlConnection connection, Guid tenantId,
+        Guid snapshotId, string engineVersion, string calculationHash, CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT id,quote_snapshot_id,calculation_hash,engine_version,result_json,status FROM calculation_runs
+            WHERE tenant_id=@tenant AND quote_snapshot_id=@snapshot AND engine_version=@engine AND calculation_hash=@hash
+            """, connection);
+        command.Parameters.AddWithValue("tenant", tenantId);
+        command.Parameters.AddWithValue("snapshot", snapshotId);
+        command.Parameters.AddWithValue("engine", engineVersion);
+        command.Parameters.AddWithValue("hash", calculationHash);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? Read(reader, tenantId) : null;
+    }
+
+    private static async Task<StoredCalculation?> FindByIdAsync(NpgsqlConnection connection, Guid tenantId,
+        Guid id, CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand("""
+            SELECT id,quote_snapshot_id,calculation_hash,engine_version,result_json,status FROM calculation_runs
+            WHERE tenant_id=@tenant AND id=@id
+            """, connection);
+        command.Parameters.AddWithValue("tenant", tenantId);
+        command.Parameters.AddWithValue("id", id);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken) ? Read(reader, tenantId) : null;
     }
