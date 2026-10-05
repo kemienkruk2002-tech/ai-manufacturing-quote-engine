@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B1.H2 Tenant API route-group guardrail**
 
-Status: READY
+Status: IN_PROGRESS
 
 ## Execution rule
 
@@ -104,6 +104,6 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 
 ## Next task
 
-**B1.H2 Tenant API route-group guardrail — READY**
+**B1.H2 Tenant API route-group guardrail — IN_PROGRESS**
 
 Move tenant-scoped routes under a single route group/convention that inherits `TenantRfqAccess`, prove tenant endpoints cannot omit the policy, retain route/trusted-tenant mismatch checks, and keep `/health` plus `/openapi/v1.json` intentionally public.
