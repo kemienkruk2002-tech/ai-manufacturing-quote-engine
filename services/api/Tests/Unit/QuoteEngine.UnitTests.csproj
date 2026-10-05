@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Domain/QuoteEngine.Domain.csproj" />
+    <ProjectReference Include="../../Application/QuoteEngine.Application.csproj" />
+    <ProjectReference Include="../../Persistence/QuoteEngine.Persistence.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
+    <Using Include="Xunit" />
+    <None Update="Fixtures/w07044.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
