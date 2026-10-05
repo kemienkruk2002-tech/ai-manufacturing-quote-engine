@@ -1,0 +1,99 @@
+# AI Manufacturing Quote Engine — Etap 1 + CostEngineV1
+
+Deterministyczny rdzeń W07044 / Tuleja 92687521_A: PostgreSQL, zatwierdzony routing, TimeEngineV1, StockEngineV1, CostEngineV1, immutable snapshot oraz wersjonowane metadane plików RFQ z lokalnym content-addressed store SHA-256. ASP.NET Core **.NET 8**, xUnit, Npgsql. Silniki domenowe nie korzystają z AI, sieci, bazy, zegara ani losowości.
+
+## Szybki start — Windows
+
+Z katalogu projektu, w PowerShell:
+
+```powershell
+# Start izolowanego PostgreSQL i wszystkie testy (również integracyjne).
+.\scripts\test.ps1 -DatabaseMode Portable
+
+# Przygotowanie bazy demonstracyjnej; polecenie można powtarzać.
+$env:ConnectionStrings__QuoteEngine = .\scripts\start-test-db.ps1 -Mode Portable
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+dotnet run --project services/api/Host/QuoteEngine.Api.csproj -- --migrate --seed-golden --calculate-golden
+
+# Serwer developerski na localhost.
+dotnet run --project services/api/Host/QuoteEngine.Api.csproj -- --urls http://127.0.0.1:5080
+```
+
+Otwórz `http://127.0.0.1:5080/api/dev/golden/w07044`. Endpoint zwraca dane detalu, materiał, półfabrykat, 8 operacji, wymagania kontroli, wyniki czasu, materiału i kosztu oraz hashe. `calculatedCostResult` zachowuje pełną precyzję, a `calculatedCostDisplay` stosuje prezentacyjne zaokrąglenie do dwóch miejsc. `Dev__GoldenEnabled=false` wyłącza endpoint. W Production i Staging endpoint nie jest rejestrowany. Polecenia golden seed/calculate także wymagają Development.
+
+Portable PostgreSQL jest przechowywany poza repozytorium, w `%LOCALAPPDATA%\Codex\manufacturing-quote-test-postgres`, nasłuchuje wyłącznie na `127.0.0.1:55432`. Skrypt pobiera binarki EDB przy pierwszym uruchomieniu. Zatrzymanie: `.\scripts\stop-test-db.ps1 -Mode Portable`. Połączenie zwracane przez skrypt służy wyłącznie lokalnym testom i demo.
+
+## Docker / Linux / CI
+
+```sh
+docker compose up -d --wait postgres
+export QUOTEENGINE_TEST_DATABASE='Host=127.0.0.1;Port=55432;Database=manufacturing_quote_test;Username=quote_test;Password=quote_test_local_only'
+dotnet restore QuoteEngine.sln --locked-mode
+dotnet test QuoteEngine.sln --configuration Release --no-restore
+```
+
+Same testy domeny, bez PostgreSQL:
+
+```sh
+dotnet test services/api/Tests/Unit/QuoteEngine.UnitTests.csproj --configuration Release
+```
+
+Testy integracyjne wymagają `QUOTEENGINE_TEST_DATABASE` i prawa CREATE DATABASE. Każdy przebieg tworzy własną bazę `quoteengine_it_<id>`, migruje ją od zera i usuwa po teście. Nie czyszczą wskazanej bazy bazowej. Brak połączenia jest błędem testów, a nie pominięciem. CI w `.github/workflows/ci.yml` uruchamia pełny zestaw z PostgreSQL 16 i zapisuje TRX; nie wymaga usług ani kluczy AI.
+
+## Oczekiwany wynik Q=150
+
+| Wartość | Wynik |
+| --- | ---: |
+| ΣTj | 1375 s/szt. |
+| ΣTpz | 230 min/partię |
+| Tpz na sztukę | 92 s |
+| Pracochłonność na sztukę | 1467 s |
+| Pracochłonność partii | 61.125 h |
+| Masa finalna | 3.540 kg |
+| Normatyw | 5.298 kg/szt. |
+| Wykorzystanie materiału | 3.540 / 5.298 |
+| Koszt Tj | 87.25 PLN |
+| Koszt Tpz | 4.02 PLN |
+| Koszt pracy | 91.27 PLN |
+| Koszt materiału | 14.94 PLN |
+| Koszt całkowity | 106.21 PLN |
+
+Silniki używają `decimal`, bez zaokrągleń do dwóch miejsc. Wartości godzin z tabeli źródłowej są przybliżeniami; test dziewięciu ilości używa tolerancji `1e-9`. Dodatkowy test obejmuje każdą ilość 1–500. Dla dzielenia okresowego dopuszczalny jest wyłącznie ostatni błąd reprezentacji `decimal`.
+
+## Struktura
+
+- `services/api/Domain` — encje, enumy, walidacja, silniki i canonical JSON, bez zależności zewnętrznych.
+- `services/api/Application` — interfejsy repozytoriów, przygotowanie kalkulacji, odtwarzanie, logi.
+- `services/api/Persistence` — Npgsql, migracje SQL, seed i zapis wyników.
+- `services/api/Host` — ASP.NET Core, polecenia developerskie i endpoint.
+- `services/api/Tests/Unit` — golden, macierz, canonical, repeatability, routing, stock, stawki.
+- `services/api/Tests/Integration` — prawdziwy PostgreSQL, migracje, seed, constraints, równoległość, tenant isolation, API i historyczny replay.
+- `docs/sources` — tekst odczytanych źródeł 02, 11, 11A wraz z adresem i datą wersji.
+- `docs/adr/001-stage1.md` — decyzje techniczne, format snapshotu i ograniczenia.
+
+Etap udostępnia debug przez API/command. Ekran Next.js będzie mógł korzystać z tego API w kolejnym etapie. PricingEngine, parser STEP, AI Extractor i email ingestion nie są częścią implementacji.
+
+## Migracje i seed
+
+1. `001_core_master_data.sql`: tenants, parts, revisions, material, stock, machines, rate periods.
+2. `002_routing_and_time.sql`: routes, operations, inspections, approval/version guards.
+3. `003_snapshots_and_calculations.sql`: requests, immutable snapshots, request associations, runs, operation results.
+4. `004_audit.sql`: append-only audit i triggery decyzji.
+5. `005_cost_engine_v1.sql`: wersjonowane stawki kosztowe, jawny koszt materiału oraz pełnoprecyzyjne wyniki kosztowe operacji.
+6. `006_rfq_file_versions.sql`: logiczne dokumenty RFQ i immutable wersje metadanych; baza nie przechowuje bajtów plików.
+
+`DatabaseMigrator` wykonuje migracje transakcyjnie pod advisory lock. Zapamiętuje SHA-256 każdej migracji i odrzuca zmianę już zastosowanego pliku. Nowe wdrożone zmiany wymagają nowej migracji. `--migrate` i `--seed-golden` są osobnymi jawnymi akcjami; serwer nie zmienia schematu przy zwykłym starcie.
+
+Seed jest oddzielnym plikiem SQL, obejmuje test tenant, osiem zasobów oraz wersję stawek `w07044-koszty-v1` z jawnym kosztem materiału. Ponowne uruchomienie nie aktualizuje Approved rows i nie powiela audytu. Wykryty konflikt istniejących danych golden kończy seed błędem.
+
+Rollback zmian schematu w bazie zawierającej dane: odtworzenie przetestowanej kopii lub kolejna migracja naprawcza. Nie ma destrukcyjnego polecenia automatycznie cofającego immutable historię. Bazy testów są jednorazowe.
+
+## TODO / dane do decyzji
+
+- **BLOCKED PricingEngineV1:** brak dokładnej polityki handlowej i zasad precyzji dla cen 223.15 PLN oraz 210.15 PLN. CostEngine nie wylicza ceny sprzedaży.
+- **TODO:** źródła nie podają autora i daty zatwierdzenia; pola pozostają NULL. Seed zachowuje zatwierdzone statusy wskazane w poleceniu.
+- **TODO:** pełna weryfikacja wymagań jakościowych. Zaimportowano osiem pozycji 11A; „Częściowo” zachowano dosłownie, bez zgadywania wartości boolean. Nie dodano osobnych czasów kontroli; 0080 ma potwierdzone 0/0.
+- **TODO biznesowe:** postępowanie przy potwierdzonej masie finalnej większej niż normatyw. Obecny silnik stosuje wskazany wzór, bez clampowania lub nowej reguły odrzucenia.
+- **CI zdalne:** workflow jest przygotowany; uruchomienie GitHub Actions wymaga repozytorium zdalnego. Nie skonfigurowano ani nie opublikowano zdalnego repozytorium.
+
+Wynik i pełna lista plików znajdują się w `docs/verification-stage1.md` oraz `docs/changed-files.txt`.
