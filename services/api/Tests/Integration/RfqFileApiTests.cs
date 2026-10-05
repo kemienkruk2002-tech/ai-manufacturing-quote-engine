@@ -6,7 +6,10 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
+using QuoteEngine.Application;
 using QuoteEngine.Domain.Quoting;
 using QuoteEngine.Persistence;
 
@@ -84,6 +87,21 @@ public sealed class RfqFileApiTests(PostgresFixture db)
         using var response = await api.Client.GetAsync(DownloadUrl(Guid.NewGuid(), requestId, "tenant", 1));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("TENANT_RESOURCE_NOT_FOUND",
+            (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Missing_trusted_tenant_context_is_unauthorized()
+    {
+        using var api = new RfqFileApiContext(db.ConnectionString, configureTenantContext: false);
+
+        using var response = await api.Client.GetAsync(DownloadUrl(
+            PostgresFixture.TenantId, PostgresFixture.RequestId, "missing-context", 1));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("TENANT_CONTEXT_REQUIRED",
+            (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -240,9 +258,11 @@ internal sealed class RfqFileApiContext : IDisposable
         ? Directory.EnumerateFiles(storageRoot, "*", SearchOption.AllDirectories).Count()
         : 0;
 
-    public RfqFileApiContext(string connectionString, long maxUploadBytes = 1024, bool configurePolicy = true)
+    public RfqFileApiContext(string connectionString, long maxUploadBytes = 1024, bool configurePolicy = true,
+        bool configureTenantContext = true)
     {
-        factory = new RfqFileApiFactory(connectionString, storageRoot, maxUploadBytes, configurePolicy);
+        factory = new RfqFileApiFactory(connectionString, storageRoot, maxUploadBytes, configurePolicy,
+            configureTenantContext);
         Client = factory.CreateClient();
     }
 
@@ -260,7 +280,7 @@ internal sealed class RfqFileApiContext : IDisposable
 }
 
 internal sealed class RfqFileApiFactory(string connectionString, string storageRoot, long maxUploadBytes,
-    bool configurePolicy) : WebApplicationFactory<Program>
+    bool configurePolicy, bool configureTenantContext) : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -280,5 +300,18 @@ internal sealed class RfqFileApiFactory(string connectionString, string storageR
             }
             configuration.AddInMemoryCollection(values);
         });
+        if (configureTenantContext)
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<ITenantContext>();
+                services.AddScoped<ITenantContext>(_ => new StaticTenantContext(PostgresFixture.TenantId));
+            });
+        }
     }
+}
+
+internal sealed class StaticTenantContext(Guid tenantId) : ITenantContext
+{
+    public Guid TenantId { get; } = tenantId;
 }
