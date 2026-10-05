@@ -70,8 +70,46 @@ Acceptance: application services receive tenant identity from a single trusted a
 
 Acceptance: unauthorized/cross-tenant access is rejected before repository execution.
 
-### B1 audit
-Audit API consistency, leakage, tenant isolation, regression, and CI. Update plan before B2.
+### B1 audit — DONE
+
+Audit: `docs/B1_API_FOUNDATION_AUDIT_2026-10-05.md`
+
+B1.1-B1.4 are complete. The audit produced the following hardening tasks that run before B2.
+
+### B1.H1 Calculation-run concurrent idempotency — READY
+
+A concrete CI failure exposed a race in concurrent equal calculation persistence.
+
+- stress repeated concurrent saves/calculations;
+- make equal calculation writes idempotent across both deterministic primary key and natural unique key;
+- preserve detection of any stable-ID collision involving different calculation content;
+- exactly one calculation run and one operation-result set;
+- do not alter calculation formulas or canonical hashes;
+- full CI green.
+
+### B1.H2 Tenant API route-group guardrail
+
+After H1:
+- group all tenant-scoped HTTP routes under one tenant route group/convention;
+- apply `TenantRfqAccess` authorization once at the group boundary;
+- prevent new B2 tenant endpoints from accidentally omitting authorization;
+- retain safe route/trusted-tenant mismatch checks;
+- keep `/health` and `/openapi/v1.json` public intentionally;
+- metadata/integration tests and full CI.
+
+### B1.H3 GitHub branch/CI guardrails
+
+When repository-admin tooling supports it:
+- require CI before merge to `main`;
+- block force-push/deletion of `main`;
+- rename the stale workflow title from `Stage 1 deterministic core` to a project-level CI name;
+- retain read-only default workflow permissions.
+
+If branch-protection mutation is unsupported, document it as an external configuration blocker and continue.
+
+### B1 blocked deployment follow-up — production identity provider
+
+Do not guess the production identity provider. Production remains fail-closed until issuer/authority, audience, protocol and tenant-claim mapping are defined. Standard OpenAPI security-scheme metadata remains blocked by the same decision.
 
 ## Milestone B2 — Real RFQ backend
 
