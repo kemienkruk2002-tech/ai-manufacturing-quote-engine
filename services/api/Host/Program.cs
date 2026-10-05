@@ -86,6 +86,7 @@ builder.Services.AddScoped<IMachineRateRepository>(sp => sp.GetRequiredService<S
 builder.Services.AddScoped<IQuoteSnapshotRepository, QuoteSnapshotRepository>();
 builder.Services.AddScoped<ICalculationRunRepository, CalculationRunRepository>();
 builder.Services.AddScoped<IRfqFileRepository, RfqFileRepository>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<CalculationService>();
 var app = builder.Build();
 

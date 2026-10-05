@@ -1,4 +1,5 @@
 using QuoteEngine.Domain.Calculation;
+using QuoteEngine.Domain.Customers;
 using QuoteEngine.Domain.Machines;
 using QuoteEngine.Domain.Quoting;
 
@@ -15,6 +16,18 @@ public sealed record CalculationWrite(StoredSnapshot Snapshot, QuoteSnapshotPayl
     string CalculationHash, TimeCalculationResult TimeResult, StockCalculationResult StockResult,
     CostCalculationResult? CostResult, string ResultJson, string CorrelationId,
     DateTimeOffset StartedAt, DateTimeOffset FinishedAt, decimal DurationMs);
+
+public interface ICustomerRepository
+{
+    Task<Customer> CreateAsync(Customer customer, CancellationToken cancellationToken = default);
+    Task<Customer?> FindAsync(Guid tenantId, Guid customerId, CancellationToken cancellationToken = default);
+    Task<CustomerContact> CreateContactAsync(CustomerContact contact,
+        CancellationToken cancellationToken = default);
+    Task<CustomerContact?> FindContactAsync(Guid tenantId, Guid contactId,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CustomerContact>> ListContactsAsync(Guid tenantId, Guid customerId,
+        CancellationToken cancellationToken = default);
+}
 
 public interface IPartRepository
 {

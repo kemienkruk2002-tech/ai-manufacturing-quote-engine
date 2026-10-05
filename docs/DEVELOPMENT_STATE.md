@@ -19,7 +19,7 @@ Mode: autonomous backend-first development
 
 Current task: **B2.1 Customer/contact model**
 
-Status: READY
+Status: CI_PENDING
 
 ## Execution rule
 
@@ -137,8 +137,20 @@ Unblocked P0/P1 audit findings are fixed before B2 feature development.
 - GitHub documentation confirms required status checks gate merges and protected branches/rulesets can block force-push/deletion.
 - This external configuration blocker does not block backend B2 development; until resolved, this development loop continues enforcing PR -> green CI -> merge manually.
 
-## Next task
 
-**B2.1 Customer/contact model — READY**
 
-Add the smallest tenant-scoped customer/contact persistence slice required by the RFQ backend: additive migration, minimal domain/application records and repository coverage. Do not invent CRM, pricing, approval or sales fields that are not required by the current RFQ workflow.
+### B2.1 implementation pending PR CI
+
+- Branch: `auto/b2-1-customer-contact`.
+- Added additive migration `008_customers_contacts.sql`.
+- Added tenant-scoped `customers` and `customer_contacts` tables with composite tenant foreign keys.
+- Added nullable `quote_requests.customer_id` with tenant-scoped FK, matching the existing source specification.
+- Did not add customer email, phone, tax id, salesperson, discount, address, CRM status or contact email because the project sources do not define those fields.
+- Domain model is intentionally minimal: `Customer(TenantId, Id, Name)` and `CustomerContact(TenantId, Id, CustomerId, Name)`.
+- Added `ICustomerRepository`, Npgsql implementation and Host DI registration.
+- Repository supports create/find customer, create/find contact and deterministic contact listing by id.
+- Added integration coverage for round-trip persistence, tenant filtering, cross-tenant contact rejection, same-tenant RFQ customer reference, cross-tenant RFQ rejection and whitespace-name validation.
+- Updated migration-count regression tests from 7 to 8.
+- Existing golden seed remains customer-null and unchanged.
+- Current branch verification: **641 unit + 175 integration = 816/816 PASS**.
+- Source basis: docs/sources/11.txt specifies `Customer` and nullable `quote_requests.customer_id`; docs/sources/02.txt requires every business table to carry `tenant_id`.
