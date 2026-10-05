@@ -1,0 +1,84 @@
+Source: https://docs.google.com/spreadsheets/d/1gV2D3PnhZ0QTX65u9QiZS22qmi-_q_hvY-RqDJgqLfQ/edit
+Modified: 2026-09-15T16:13:06.853Z
+
+,Pole,Wartość,Jednostka,Status,Uwagi
+0,part_number,W07044,,CONFIRMED,Golden Case
+1,name,Tuleja 92687521_A,,CONFIRMED,
+2,variant,2,,CONFIRMED,
+3,process_version,Podstawowa(1),,CONFIRMED,
+4,process_status,Aktualny,,CONFIRMED,
+5,final_mass,3.54,kg,CONFIRMED,Masa finalnego detalu
+6,material_code,M00320,,CONFIRMED,
+7,material_grade,S355J2,,CONFIRMED,Pręt 48 g/w
+8,stock_type,ROUND_BAR,,CONFIRMED,Pręt
+9,stock_diameter,48,mm,CONFIRMED,
+10,material_norm_per_unit,5.298,kg/szt.,CONFIRMED,Półfabrykat / normatyw
+11,material_utilization,0.6681766704,ratio,DERIVED,3.54 / 5.298
+12,scrap_fraction,0.3318233296,ratio,DERIVED,1 - utilization
+13,golden_quantity,150,szt.,TEST_INPUT,
+14,sum_tj,1375,s/szt.,CONFIRMED,Suma operacji
+15,sum_tpz,230,min/partię,CONFIRMED,Suma operacji
+,Lp,Operacja,Nazwa,Zasób,Tj [s],Tpz [min],Origin,Approval,Uwagi
+0,1,0010,Cięcie wstępne,4.52 PIŁY TARCZOWE,30,20,DOCUMENT,APPROVED,
+1,2,0020,Planowanie,4.63 NAKIEŁCZARKA,140,30,DOCUMENT,APPROVED,
+2,3,0030,Toczenie,4.81 TAE 35 N HANKA,200,30,DOCUMENT,APPROVED,Mocować w kłach
+3,4,0040,Toczenie,3.2 NLX,600,60,DOCUMENT,APPROVED,Twarde szczęki
+4,5,0050,Toczenie,1.051 SBL-500 Obr dokładna 2,285,60,DOCUMENT,APPROVED,Miękkie przetoczone szczęki
+5,6,0060,Przeciąganie,5.51 PRZECIĄGARKI,80,20,DOCUMENT,APPROVED,Wielowypust
+6,7,0070,Mycie,5.61 ST. GRADOWANIA,40,10,DOCUMENT,APPROVED,Mycie i konserwacja
+7,8,0080,Kontrola końcowa,0.7 KONTROLA JAKOŚCI,0,0,DOCUMENT,APPROVED,Na razie 0 w źródle
+8,SUMA,,,,1375,230,,,
+,Operacja,Typ,Wymaganie,Metoda / narzędzie,Częstotliwość,Protokół,Status
+0,0030,DIMENSION,"Ø45h10 (0/-0,1)",Transametr MMCf 25-50,1,Nie,CONFIRMED
+1,0030,ROUGHNESS,"Ra 3,2",Chropowatościomierz,20,Nie,CONFIRMED
+2,0040,GD_T,"Pozycja Ø0,15",Maszyna pomiarowa,Sztuka ustawcza,Tak,CONFIRMED
+3,0050,THREAD,"M40x1,5 6g",Sprawdzian gwintu pierścieniowy,5,Nie,CONFIRMED
+4,0050,ROUGHNESS,"Ra 0,8",Chropowatościomierz,10,Nie,CONFIRMED
+5,0050,ROUGHNESS,"Ra 1,6",Chropowatościomierz,10,Nie,CONFIRMED
+6,0060,SPLINE,"16/32, z=9, kąt 30°",Sprawdzian GO/NOGO,5 / sztuka ustawcza,Częściowo,CONFIRMED
+7,0060,DIMENSION,"Wymiar przez wałeczki 10,088 mm",Maszyna pomiarowa,Sztuka ustawcza,Tak,CONFIRMED
+,Zasób,Stawka Tj PLN/h,Stawka Tpz PLN/h,Valid from,Wersja,Status
+0,4.52 PIŁY TARCZOWE,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+1,4.63 NAKIEŁCZARKA,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+2,4.81 TAE 35 N HANKA,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+3,3.2 NLX,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+4,1.051 SBL-500 Obr dokładna 2,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+5,5.51 PRZECIĄGARKI,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+6,5.61 ST. GRADOWANIA,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+7,0.7 KONTROLA JAKOŚCI,DO UZUPEŁNIENIA,DO UZUPEŁNIENIA,,rates-v1,BLOCKING
+,Assertion,Expected,Unit,Tolerance,Critical
+0,part_number,W07044,,exact,YES
+1,final_mass,3.54,kg,exact decimal,YES
+2,stock_diameter,48,mm,exact,YES
+3,material_norm,5.298,kg/szt.,exact decimal,YES
+4,sum_tj,1375,s/szt.,exact,YES
+5,sum_tpz,230,min/partię,exact,YES
+6,Q,150,szt.,exact,YES
+7,tpz_per_unit,92,s/szt.,exact,YES
+8,labor_per_unit,1467,s/szt.,exact,YES
+9,labor_batch,61.125,h,1e-9,YES
+10,repeatability,100/100 identical,,exact,YES
+,Q,ΣTj [s/szt.],ΣTpz [min/partię],Tpz [s/szt.],Pracochłonność [s/szt.],Pracochłonność partii [h]
+0,1,1375,230,13800,15175,4.2152777778
+1,5,1375,230,2760,4135,5.7430555556
+2,10,1375,230,1380,2755,7.6527777778
+3,25,1375,230,552,1927,13.3819444444
+4,50,1375,230,276,1651,22.9305555556
+5,100,1375,230,138,1513,42.0277777778
+6,150,1375,230,92,1467,61.125
+7,250,1375,230,55.2,1430.2,99.3194444444
+8,500,1375,230,27.6,1402.6,194.8055555556
+,Priorytet,Zadanie,Właściciel,Blokuje?,Status
+0,P0,Potwierdzić stawki Tj/Tpz dla 8 zasobów,Kamil,TAK,TODO
+1,P0,Utworzyć modele i migracje bazy,Codex,TAK,TODO
+2,P0,Seed W07044 bez hardcodowania w silnikach,Codex,TAK,TODO
+3,P0,TimeEngineV1 + test Q=150,Codex,TAK,TODO
+4,P0,Quantity matrix tests 1..500,Codex,TAK,TODO
+5,P0,Snapshot + SHA-256 + test 100x,Codex,TAK,TODO
+6,P1,"StockEngineV1 rozróżniający 3,54 vs 5,298 kg",Codex,TAK,TODO
+7,P1,CostEngineV1 po uzupełnieniu stawek,Codex,TAK,TODO
+8,P1,Zweryfikować pełne requirements jakościowe W07044,ChatGPT + Kamil,NIE,TODO
+9,P2,STEP Geometry Engine,Codex,NIE teraz,LATER
+10,P2,AI PDF Requirement Extractor,Codex + ChatGPT,NIE teraz,LATER
+11,P3,Integracja poczty / RFQ intake,Codex,NIE teraz,LATER
+

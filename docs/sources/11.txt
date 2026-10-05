@@ -1,0 +1,661 @@
+Source: https://docs.google.com/document/d/1Iw0poV6wJleF3YtEi5IdZJ491-b-3sHMjqpOB7LL87s/edit
+Modified: 2026-09-15T15:44:03.702Z
+
+﻿MODEL DANYCH I BAZA MVP – W07044 / 92687521_A
+
+
+Cel dokumentu
+
+
+To jest specyfikacja pierwszej implementacji bazy danych dla AI Manufacturing Quote Engine. Nie budujemy jeszcze automatycznego ofertowania z poczty ani autonomicznego AI. Najpierw system ma poprawnie zapisać, odtworzyć i przeliczyć jeden rzeczywisty przypadek W07044 / Tuleja 92687521_A. Ten przypadek jest GOLDEN CASE i będzie regression testem dla kolejnych wersji.
+
+
+ZASADA NR 1 – DETERMINIZM
+
+
+Dla tego samego snapshotu wejścia, tej samej wersji reguł, stawek i polityki cenowej wynik kalkulacji musi być identyczny 100/100 razy.
+
+
+AI nie zapisuje finalnego kosztu ani ceny. AI w przyszłości może zaproponować fakty, routing lub klasyfikację. Po zatwierdzeniu dane trafiają do ustrukturyzowanego snapshotu, a wszystkie obliczenia wykonuje kod deterministyczny.
+
+
+1. ZAKRES MVP
+
+
+W MVP zapisujemy i obsługujemy:
+- detal / part,
+- rewizję / wariant / wersję procesu,
+- ilość ofertową,
+- materiał,
+- półfabrykat i normatyw materiału,
+- maszyny i zasoby,
+- routing technologiczny,
+- Tj i Tpz,
+- wymagania kontrolne,
+- stawki kosztowe,
+- snapshot kalkulacji,
+- breakdown kosztu,
+- politykę cenową,
+- finalną ofertę jako wersjonowany draft,
+- golden expected values do testów.
+
+
+Poza zakresem tej fazy: poczta, automatyczne wysyłanie ofert, ERP, pełny parser wszystkich rysunków, ML uczący się na żywo, autonomiczne zatwierdzanie technologii.
+
+
+2. GOLDEN CASE – DANE ŹRÓDŁOWE
+
+
+Part:
+part_number = W07044
+name = Tuleja 92687521_A
+variant = 2
+process_version = Podstawowa(1)
+process_status = Aktualny
+final_mass_kg = 3.540
+material_code = M00320
+material_name = Pręt 48 g/w S355J2
+stock_form = ROUND_BAR
+stock_diameter_mm = 48
+material_norm_kg_per_unit = 5.298
+
+
+Routing ground truth:
+0010 – Cięcie wstępne – PIŁY TARCZOWE – Tj 30 s – Tpz 20 min
+0020 – Planowanie – NAKIEŁCZARKA – Tj 140 s – Tpz 30 min
+0030 – Toczenie – TAE 35 N HANKA – Tj 200 s – Tpz 30 min
+0040 – Toczenie – NLX – Tj 600 s – Tpz 60 min
+0050 – Toczenie – SBL-500 Obr dokładna 2 – Tj 285 s – Tpz 60 min
+0060 – Przeciąganie – PRZECIĄGARKI – Tj 80 s – Tpz 20 min
+0070 – Mycie – ST. GRADOWANIA – Tj 40 s – Tpz 10 min
+0080 – Kontrola końcowa – KONTROLA JAKOŚCI – Tj 0 s – Tpz 0 min
+
+
+Inwariant:
+SUM_TJ_SEC = 1375
+SUM_TPZ_MIN = 230
+
+
+3. MODEL DOMENOWY
+
+
+Główne encje:
+Tenant
+Customer
+Part
+PartRevision
+Material
+StockDefinition
+Machine
+MachineRate
+ProcessRoute
+ProcessOperation
+InspectionRequirement
+QuoteRequest
+QuoteSnapshot
+CalculationRun
+CalculationOperationResult
+QuotePrice
+RuleSetVersion
+AuditEvent
+GoldenCase
+GoldenAssertion
+
+
+Relacja logiczna:
+Part -> PartRevision -> ProcessRoute -> ProcessOperation
+PartRevision -> Material / StockDefinition
+ProcessOperation -> Machine
+ProcessOperation -> InspectionRequirement[]
+QuoteRequest -> QuoteSnapshot -> CalculationRun -> CalculationOperationResult[] -> QuotePrice
+Każdy CalculationRun wskazuje konkretne wersje RuleSetVersion i stawek.
+
+
+4. TABELA parts
+
+
+Pola obowiązkowe:
+id UUID PK
+part_number TEXT NOT NULL
+name TEXT NOT NULL
+default_unit TEXT NOT NULL DEFAULT 'szt'
+created_at TIMESTAMP
+updated_at TIMESTAMP
+
+
+UNIQUE: tenant_id + part_number
+
+
+Przykład:
+W07044 | Tuleja 92687521_A
+
+
+5. TABELA part_revisions
+
+
+id UUID PK
+part_id FK
+revision_code TEXT NULL
+variant TEXT NULL
+process_version TEXT NULL
+status ENUM(DRAFT, ACTIVE, ARCHIVED)
+final_mass_kg DECIMAL(18,6) NULL
+source_reference TEXT NULL
+valid_from TIMESTAMP
+valid_to TIMESTAMP NULL
+
+
+W07044:
+variant = 2
+process_version = Podstawowa(1)
+status = ACTIVE
+final_mass_kg = 3.540000
+
+
+Nie zapisujemy brakującej rewizji jako pustego stringa. Brak = NULL.
+
+
+6. TABELA materials
+
+
+id UUID PK
+material_code TEXT
+display_name TEXT
+standard_grade TEXT
+density_kg_m3 DECIMAL(18,6) NULL
+active BOOLEAN
+valid_from / valid_to
+source_reference
+
+
+W07044:
+material_code = M00320
+standard_grade = S355J2
+display_name = Pręt 48 g/w S355J2
+
+
+7. TABELA stock_definitions
+
+
+id UUID PK
+material_id FK
+stock_type ENUM(ROUND_BAR, FLAT_BAR, PLATE, TUBE, FORGING, CASTING, OTHER)
+diameter_mm DECIMAL NULL
+width_mm DECIMAL NULL
+height_mm DECIMAL NULL
+thickness_mm DECIMAL NULL
+length_mm DECIMAL NULL
+allowance_mm DECIMAL NULL
+kerf_mm DECIMAL NULL
+norm_mass_kg_per_unit DECIMAL(18,6)
+source_type ENUM(DOCUMENT, MASTER_DATA, MANUAL, CALCULATED)
+source_reference TEXT
+rule_version TEXT
+
+
+W07044:
+stock_type = ROUND_BAR
+diameter_mm = 48
+norm_mass_kg_per_unit = 5.298000
+source_type = DOCUMENT
+
+
+WAŻNE: norm_mass_kg_per_unit i final_mass_kg to dwa różne pola. Nigdy nie nadpisujemy jednego drugim.
+
+
+8. TABELA machines
+
+
+id UUID PK
+machine_code TEXT NOT NULL
+name TEXT NOT NULL
+machine_group TEXT
+capabilities JSONB
+max_x_mm / max_y_mm / max_z_mm DECIMAL NULL
+active BOOLEAN
+valid_from / valid_to
+
+
+Dla MVP seedujemy zasoby użyte w W07044:
+4.52 – PIŁY TARCZOWE
+4.63 – NAKIEŁCZARKA
+4.81 – TAE 35 N HANKA
+3.2 – NLX
+1.051 – SBL-500 Obr dokładna 2
+5.51 – PRZECIĄGARKI
+5.61 – ST. GRADOWANIA
+0.7 – KONTROLA JAKOŚCI
+
+
+9. TABELA machine_rates
+
+
+id UUID PK
+machine_id FK
+rate_type ENUM(TJ, TPZ, OVERHEAD, LABOR, OTHER)
+rate_pln_per_hour DECIMAL(18,6)
+effective_from TIMESTAMP
+effective_to TIMESTAMP NULL
+source_reference TEXT
+rate_version TEXT NOT NULL
+
+
+Nie trzymamy jednej stawki globalnej. Każdy zasób może mieć inne stawki i własną historię zmian.
+
+
+Jeśli dla momentu kalkulacji brak aktywnej stawki, wynik = BLOCKED. Nigdy nie podstawiamy 0.
+
+
+10. TABELA process_routes
+
+
+id UUID PK
+part_revision_id FK
+route_code TEXT
+version TEXT
+status ENUM(DRAFT, APPROVED, ARCHIVED)
+approved_by UUID NULL
+approved_at TIMESTAMP NULL
+source_reference TEXT
+
+
+W07044 route jest ground truth i po seedzie ma status APPROVED.
+
+
+11. TABELA process_operations
+
+
+id UUID PK
+route_id FK
+operation_no TEXT NOT NULL
+sequence_no INT NOT NULL
+operation_type TEXT NOT NULL
+operation_name TEXT
+machine_id FK
+tj_sec DECIMAL(18,6) NOT NULL
+tpz_min_per_batch DECIMAL(18,6) NOT NULL
+setup_description TEXT NULL
+source_reference TEXT
+confidence DECIMAL NULL
+origin ENUM(MANUAL, DOCUMENT, AI_PROPOSED, IMPORTED)
+approval_status ENUM(PROPOSED, APPROVED, REJECTED)
+
+
+UNIQUE: route_id + operation_no
+UNIQUE: route_id + sequence_no
+CHECK: tj_sec >= 0
+CHECK: tpz_min_per_batch >= 0
+
+
+Dla W07044 wszystkie operacje origin = DOCUMENT, approval_status = APPROVED.
+
+
+12. TABELA inspection_requirements
+
+
+id UUID PK
+process_operation_id FK
+requirement_no TEXT
+requirement_type ENUM(DIMENSION, GD_T, ROUGHNESS, THREAD, SPLINE, VISUAL, OTHER)
+description TEXT
+nominal_value TEXT NULL
+tolerance_text TEXT NULL
+measurement_method TEXT NULL
+sampling_text TEXT NULL
+requires_protocol BOOLEAN DEFAULT false
+source_reference TEXT
+origin ENUM(DOCUMENT, AI_EXTRACTED, MANUAL)
+approval_status ENUM(PROPOSED, APPROVED, REJECTED)
+
+
+Przykłady W07044:
+0030: średnica Ø45h10(0/-0,1), chropowatość Ra 3,2, faza.
+0040: wiele wymiarów, chropowatość, pozycja kontrolowana maszyną pomiarową, konturograf.
+0050: M40x1,5 6g, Ra 3,2 / 0,8 / 1,6, wymagania geometryczne, CMM/konturograf.
+0060: wielowypust 16/32, z=9, sprawdzian GO/NOGO, wymiar przez wałeczki.
+
+
+13. TABELA quote_requests
+
+
+id UUID PK
+customer_id FK NULL
+external_rfq_no TEXT NULL
+part_revision_id FK
+requested_quantity INT NOT NULL
+currency CHAR(3) DEFAULT 'PLN'
+requested_due_date DATE NULL
+status ENUM(NEW, DATA_REVIEW, READY_FOR_CALC, CALCULATED, APPROVED, SENT, LOST, WON, BLOCKED)
+created_at
+
+
+CHECK quantity > 0
+
+
+Dla golden testu zaczynamy od quantity = 150.
+
+
+14. TABELA quote_snapshots
+
+
+Najważniejsza tabela deterministyczności.
+
+
+id UUID PK
+quote_request_id FK
+snapshot_hash CHAR(64) UNIQUE
+part_revision_payload JSONB
+material_payload JSONB
+stock_payload JSONB
+route_payload JSONB
+machine_rates_payload JSONB
+pricing_policy_payload JSONB
+rule_versions_payload JSONB
+created_at
+created_by
+
+
+Snapshot jest IMMUTABLE.
+
+
+Jeżeli użytkownik zmieni stawkę, materiał, routing lub ilość – tworzymy nowy snapshot. Nie edytujemy starego.
+
+
+15. TABELA calculation_runs
+
+
+id UUID PK
+quote_snapshot_id FK
+engine_version TEXT NOT NULL
+time_engine_version TEXT NOT NULL
+stock_engine_version TEXT NOT NULL
+cost_engine_version TEXT NOT NULL
+pricing_engine_version TEXT NOT NULL
+calculation_hash CHAR(64) NOT NULL
+status ENUM(SUCCESS, BLOCKED, FAILED)
+started_at
+finished_at
+error_code TEXT NULL
+
+
+UNIQUE quote_snapshot_id + engine_version + calculation_hash może być użyte do idempotencji.
+
+
+16. TABELA calculation_operation_results
+
+
+id UUID PK
+calculation_run_id FK
+process_operation_id FK
+quantity INT
+unit_tj_sec DECIMAL(18,6)
+batch_tpz_min DECIMAL(18,6)
+unit_tpz_min DECIMAL(18,9)
+rate_tj_pln_h DECIMAL NULL
+rate_tpz_pln_h DECIMAL NULL
+unit_tj_cost_pln DECIMAL(18,6) NULL
+unit_tpz_cost_pln DECIMAL(18,6) NULL
+total_unit_operation_cost_pln DECIMAL(18,6) NULL
+
+
+Wzory:
+unit_tpz_min = batch_tpz_min / quantity
+unit_tj_cost = rate_tj * unit_tj_sec / 3600
+unit_tpz_cost = rate_tpz * unit_tpz_min / 60
+
+
+Zakaz FLOAT dla pieniędzy. DECIMAL/NUMERIC tylko.
+
+
+17. TIME ENGINE V1
+
+
+Wejście:
+route + quantity + wersja reguł czasu
+
+
+Wyjście:
+sum_tj_sec_per_unit
+sum_tpz_min_per_batch
+sum_tpz_sec_per_unit
+labor_sec_per_unit
+labor_hours_batch
+breakdown_per_operation
+
+
+Golden dla Q=150:
+sum_tj_sec_per_unit = 1375
+sum_tpz_min_per_batch = 230
+sum_tpz_sec_per_unit = 230*60/150 = 92
+labor_sec_per_unit = 1467
+labor_hours_batch = 1467*150/3600 = 61.125 h
+
+
+Rounding prezentacyjny może pokazać 61.12 h, ale silnik zachowuje większą precyzję.
+
+
+18. STOCK ENGINE V1
+
+
+Na tym etapie Stock Engine nie ma jeszcze automatycznie odkrywać pręta Ø48 ze STEP.
+
+
+Interfejs:
+resolveStock(partRevision, approvedStockDefinition) -> StockResult
+
+
+Dla W07044:
+final_mass = 3.540 kg
+norm_mass = 5.298 kg
+material_utilization = final_mass / norm_mass = ok. 0.6682
+scrap_fraction = 1 - utilization = ok. 0.3318
+
+
+Program ma pokazywać obie masy i ich pochodzenie.
+
+
+19. COST ENGINE V1
+
+
+Cost Engine sumuje WYŁĄCZNIE zatwierdzone dane.
+
+
+Składniki:
+material_cost
+operation_tj_cost
+operation_tpz_cost
+inspection_cost
+external_process_cost
+special_tooling_cost
+other_cost
+
+
+Każdy składnik ma:
+value
+currency
+source
+formula_version
+input_snapshot
+
+
+Brak danych krytycznych = BLOCKED, nie zero.
+
+
+20. PRICING ENGINE V1
+
+
+Pricing Engine przyjmuje calculated_cost oraz wersjonowaną politykę cenową.
+
+
+Nie mieszamy pojęć:
+MARGIN = (sales - cost) / sales
+MARKUP = (sales - cost) / cost
+
+
+Polityka ma przechowywać co najmniej:
+target_margin_percent
+floor_margin_percent
+minimum_order_value
+quantity_break_policy
+risk_premium_percent
+rounding_policy
+customer_override
+
+
+Finalna cena jest deterministyczna i ma calculation trace.
+
+
+21. STATUSY I BLOKADY
+
+
+BLOCKED jeśli:
+- brak ilości,
+- quantity <= 0,
+- brak zatwierdzonego routingu,
+- operacja nie ma zasobu,
+- brak wymaganej stawki kosztowej,
+- brak materiału dla detalu wymagającego materiału,
+- brak normatywu/półfabrykatu w wersji MVP,
+- konflikt danych nie został zatwierdzony.
+
+
+Nie używamy magicznych wartości typu 0, -1, 'UNKNOWN' w polach liczbowych.
+
+
+22. AUDYT
+
+
+Każda decyzja ma wpis do audit_events:
+id
+tenant_id
+entity_type
+entity_id
+action
+old_value JSONB
+new_value JSONB
+user_id
+source
+created_at
+
+
+Akcje m.in. ROUTE_APPROVED, STOCK_CHANGED, RATE_CHANGED, SNAPSHOT_CREATED, CALCULATION_RUN, QUOTE_APPROVED.
+
+
+23. HASHOWANIE I POWTARZALNOŚĆ
+
+
+snapshot_hash = SHA-256 z kanonicznego JSON po normalizacji:
+- stabilna kolejność pól,
+- stabilna kolejność tablic routingu wg sequence_no,
+- jawne jednostki,
+- kwoty jako string decimal w ustalonej skali,
+- daty ISO-8601,
+- brak pól runtime typu createdAt w payloadzie obliczeniowym.
+
+
+calculation_hash = SHA-256(snapshot_hash + wersje wszystkich silników).
+
+
+Jeśli calculation_hash jest taki sam, wynik Cost Engine i Pricing Engine musi być identyczny bit-for-bit w reprezentacji kanonicznej.
+
+
+24. GOLDEN CASE TEST – W07044
+
+
+Test seeduje bazę i asertywnie sprawdza:
+part_number = W07044
+name = Tuleja 92687521_A
+final_mass_kg = 3.540
+material = S355J2
+stock = ROUND_BAR Ø48
+norm_mass = 5.298
+routing operacji = dokładnie 0010..0080
+sum_tj = 1375 s
+sum_tpz = 230 min
+Q = 150
+unit_tpz = 92 s
+labor/unit = 1467 s
+labor batch = 61.125 h przed roundingiem
+
+
+Testy ilościowe:
+Q = 1, 5, 10, 25, 50, 100, 150, 250, 500
+Tj per unit pozostaje taki sam.
+Tpz per batch pozostaje taki sam.
+Tpz per unit = 230 / Q min jako suma route.
+
+
+Test repeatability:
+calculate(snapshot) uruchomione 100 razy -> ten sam calculation_hash i identyczny wynik.
+
+
+25. KOLEJNOŚĆ IMPLEMENTACJI DLA CODEX
+
+
+C01 – utwórz modele domenowe i enumy.
+C02 – przygotuj migracje bazy.
+C03 – dodaj constraints, indeksy i klucze obce.
+C04 – przygotuj seed W07044.
+C05 – napisz RouteRepository i walidator routingu.
+C06 – napisz TimeEngineV1 bez AI.
+C07 – napisz StockEngineV1 dla zatwierdzonego stocku.
+C08 – napisz MachineRateResolver z effective dates.
+C09 – napisz CostEngineV1.
+C10 – napisz PricingEngineV1.
+C11 – zaimplementuj canonical snapshot serializer i SHA-256.
+C12 – zaimplementuj idempotent CalculationService.
+C13 – napisz golden tests W07044.
+C14 – napisz quantity matrix tests.
+C15 – napisz repeatability 100x.
+C16 – dodaj ekran/debug endpoint pokazujący pełny calculation trace.
+
+
+26. DEFINITION OF DONE TEJ FAZY
+
+
+Faza jest skończona dopiero kiedy:
+- W07044 jest zapisany w bazie bez ręcznych wyjątków w kodzie,
+- routing jest odtworzony z tabel,
+- Time Engine przechodzi golden test,
+- Stock Engine rozróżnia 3.540 kg od 5.298 kg,
+- brak stawki blokuje kalkulację zamiast dawać zero,
+- snapshot jest immutable,
+- calculation_hash jest stabilny,
+- 100 identycznych uruchomień daje identyczny wynik,
+- zmiana jednego wejścia tworzy nowy snapshot/hash,
+- stara kalkulacja jest możliwa do replay z historycznymi danymi,
+- wszystkie krytyczne testy przechodzą w CI.
+
+
+27. CO ROBI KAMIL / CHATGPT / CODEX
+
+
+Kamil:
+- potwierdza poprawność technologii, materiału, mas i kolejności operacji,
+- dostarcza brakujące stawki i politykę cenową,
+- zatwierdza interpretację reguł biznesowych,
+- testuje wynik jak technolog.
+
+
+ChatGPT:
+- utrzymuje specyfikację i backlog,
+- rozpisuje wzory, edge case'y, schematy danych i acceptance criteria,
+- analizuje kolejne źródła,
+- przygotowuje precyzyjne zadania/prompt dla Codexa,
+- weryfikuje, czy implementacja nie przenosi logiki kosztowej do AI.
+
+
+Codex:
+- implementuje modele, migracje, silniki, testy, API i UI debugowe,
+- nie zmienia reguł biznesowych bez decyzji,
+- każdy task kończy testami,
+- nie używa LLM do funkcji, które są deterministyczne.
+
+
+28. NASTĘPNY GATE
+
+
+Nie przechodzimy do parsera maila ani AI Drawing Analyzer, dopóki W07044 nie przechodzi pełnego deterministic golden testu.
+
+
+Następna faza po przejściu gate: Geometry Engine STEP oraz strukturyzowany PDF Requirement Extractor AI, ale oba mają zasilać ten sam model danych, a nie omijać go.
