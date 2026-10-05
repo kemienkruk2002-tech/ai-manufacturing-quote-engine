@@ -1,0 +1,347 @@
+Source: https://docs.google.com/document/d/1wWDH7-muJMH2GoI2n10C_GetDYnXHw2I-f-K95xiI_k/edit
+Modified: 2026-09-14T21:35:32.897Z
+
+﻿ARCHITEKTURA SYSTEMU I PODZIAŁ AI VS DETERMINISTYCZNY SILNIK
+
+
+1. REKOMENDOWANY STACK
+Frontend: Next.js + TypeScript + React.
+API główne: ASP.NET Core (.NET 8/9) – domena, bezpieczeństwo, kalkulacja, audyt.
+Geometry Worker: osobny proces Python/C++ oparty o OpenCascade/pythonOCC lub komercyjny kernel, jeśli później wymagana będzie wyższa niezawodność.
+DB: PostgreSQL.
+Cache/idempotency: Redis opcjonalnie od V1.
+Object storage: S3-compatible/MinIO/Azure Blob na pliki RFQ.
+Queue: PostgreSQL outbox + worker na MVP; później RabbitMQ/Azure Service Bus.
+AI Gateway: osobna warstwa provider-agnostic.
+Observability: OpenTelemetry + structured logs.
+Deployment: Docker Compose dla pilota; później cloud/on-prem zgodnie z klientem.
+
+
+2. MODUŁY DOMENOWE
+A. Identity & Tenant.
+B. Customer & RFQ.
+C. Document/File.
+D. Canonical RFQ.
+E. Geometry.
+F. Manufacturing Features.
+G. Technology/Router.
+H. Machine Capability.
+I. Time.
+J. Cost.
+K. Pricing/Margin.
+L. Similarity.
+M. Approval.
+N. Quote Document.
+O. Actuals.
+P. AI Gateway.
+Q. Audit.
+
+
+3. GRANICA BEZPIECZEŃSTWA
+Warstwa AI nigdy nie ma bezpośredniego dostępu do tabel:
+- machine_rates;
+- margin_policies;
+- final_quote_price;
+- approvals;
+- production_actuals write.
+AI pracuje na DTO bezpiecznym i zwraca propozycję. Domain Service waliduje propozycję przed zapisem.
+
+
+4. PIPELINE RFQ
+Upload -> Virus/format validation -> Object Storage -> File hash -> Metadata -> Parser/OCR/vision if needed -> AI Extraction -> Schema Validation -> Conflict Detector -> CanonicalRFQ Draft -> Human Review -> Confirmed CanonicalRFQ.
+Ważne: original file nigdy nie jest nadpisywany. Rewizje są osobnymi rekordami.
+
+
+5. PIPELINE STEP
+STEP -> unit detection -> kernel load -> topology normalization -> geometry summary -> deterministic feature detectors -> geometry_feature JSON -> persistent snapshot.
+Nie wysyłać całego surowego STEP do LLM, jeżeli nie ma takiej konieczności. Do AI trafia ustrukturyzowany skrót i ewentualne rendery/obrazy.
+
+
+6. PIPELINE TECHNOLOGII
+ConfirmedRFQ + GeometryFeatures + MachineCapabilities + CompanyRules -> AI Technology Proposal -> JSON Schema -> Rule Validator -> feasible alternatives -> user approval -> RoutingVersion.
+AI proposal zawiera uzasadnienie, ale routing staje się aktywny dopiero po przejściu walidacji.
+
+
+7. PIPELINE KALKULACJI
+QuoteSnapshotInput -> TimeEngine -> CostComponents -> RiskPolicy -> PricePolicy -> QuantityBreaks -> Decimal rounding -> CalculationTrace -> QuoteVersion.
+Całość musi być funkcją czystą: wynik zależy wyłącznie od snapshotu wejścia i wersji algorytmu.
+
+
+8. CZYSTA FUNKCJA KALKULACYJNA
+Sygnatura logiczna:
+CalculateQuote(QuoteInputSnapshot input, CostEngineVersion engineVersion) -> QuoteCalculationResult.
+Zakaz:
+- pobierania 'aktualnej' ceny w środku kalkulacji;
+- odpytywania AI w trakcie kalkulacji;
+- losowości;
+- zależności od czasu systemowego poza timestampem wyniku.
+Wszystkie zmienne muszą zostać zebrane przed rozpoczęciem kalkulacji.
+
+
+9. SNAPSHOT
+Snapshot zawiera:
+- CanonicalRFQ version;
+- geometry version/hash;
+- routing version;
+- machine capability version;
+- machine rate version;
+- material price version;
+- currency rate version;
+- cost rule version;
+- time model version;
+- risk policy version;
+- margin policy version;
+- rounding policy version;
+- user overrides;
+- AI proposal IDs jako kontekst, ale nie jako źródło finalnej arytmetyki.
+Snapshot immutable.
+
+
+10. DECIMAL I ZAOKRĄGLENIA
+Pieniądze: decimal/NUMERIC, nigdy binary float.
+Czasy: Decimal sekund/minut lub integer milliseconds.
+Zaokrąglenia definiowane centralnie, np. MidpointRounding.AwayFromZero.
+Rounding policy ma numer wersji.
+Zaokrąglać na jasno określonych etapach, nie przypadkowo w UI.
+
+
+11. IDEMPOTENCY
+POST /calculate z tym samym idempotency_key nie tworzy dwóch wersji.
+Hash kalkulacji = SHA256(serialized canonical snapshot + engine version).
+Jeśli hash istnieje, można zwrócić cached result.
+
+
+12. OUTBOX PATTERN
+Zapis domenowy + event do outbox w jednej transakcji.
+Worker publikuje eventy: RFQ_PARSED, QUOTE_CALCULATED, QUOTE_APPROVED, ACTUAL_IMPORTED.
+Chroni przed sytuacją: zapisano ofertę, ale nie wysłano eventu/integracji.
+
+
+13. AI GATEWAY
+Interfejs:
+IAiProvider.StructuredComplete(schema, promptVersion, inputs).
+Provider adaptery: OpenAI / alternatywny model.
+Każdy call zapisuje:
+- request_id;
+- tenant_id;
+- use_case;
+- model_id;
+- prompt_version;
+- schema_version;
+- input_hash;
+- output_hash;
+- token usage;
+- latency;
+- success/error;
+- cached/not cached.
+Surowe dane wrażliwe logować tylko zgodnie z polityką klienta.
+
+
+14. USE CASE'Y AI – OSOBNE KONTRAKTY
+RFQ_EXTRACTOR – tekst/PDF -> pola RFQ.
+DRAWING_REQUIREMENTS_EXTRACTOR – PDF -> wymagania.
+TECHNOLOGY_PROPOSER – features+rules context -> routing proposal.
+CONFLICT_EXPLAINER – lista konfliktów -> opis dla człowieka.
+QUOTE_NARRATIVE – kalkulacja -> czytelne uzasadnienie.
+EMAIL_DRAFTER – zatwierdzona oferta -> draft wiadomości.
+Nie używać jednego gigantycznego promptu do wszystkiego.
+
+
+15. SCHEMA VALIDATION
+Każdy AI output ma JSON Schema.
+Przykład RFQ field:
+{
+  value,
+  normalized_value,
+  source_refs[],
+  confidence,
+  reasoning_summary,
+  warnings[]
+}
+Jeśli output nie przejdzie schema validation -> retry max 1-2 razy, następnie MANUAL REVIEW.
+Nigdy nie parsować swobodnego tekstu regexem jako finalnego kontraktu AI.
+
+
+16. CONFIDENCE – NIE WIERZYĆ ŚLEPO LICZBIE Z MODELU
+Confidence końcowy = kombinacja:
+- self-reported model confidence;
+- zgodność wielu źródeł;
+- obecność jednoznacznego cytatu/locatora;
+- reguły domenowe;
+- typ pola.
+Dla krytycznych pól próg jest wyższy.
+Przykład: materiał wykryty w tabliczce PDF + mail zgodny -> HIGH. Materiał tylko inferred z historii -> LOW/MEDIUM.
+
+
+17. CONFLICT DETECTOR
+Deterministyczny moduł porównuje wartości z różnych źródeł.
+Przykłady:
+PDF material != email material -> CONFLICT.
+PDF rev C != filename rev B -> CONFLICT.
+STEP units unknown -> BLOCK.
+AI tylko opisuje konflikt; nie wybiera automatycznie zwycięzcy w polach krytycznych.
+
+
+18. RULE ENGINE
+Reguły przechowywane jako wersjonowane rekordy lub kod.
+Kategorie:
+- machine capability;
+- material compatibility;
+- tolerance capability;
+- inspection requirement;
+- process precedence;
+- outsourcing;
+- quantity strategy;
+- commercial policy.
+Reguły kluczowe do bezpieczeństwa/kosztu rekomendowane jako kod z testami, nie jako tekst interpretowany dynamicznie przez LLM.
+
+
+19. FEATURE ENGINE
+Zacząć od ograniczonego zestawu feature:
+- through hole;
+- blind hole;
+- cylindrical boss;
+- rectangular pocket;
+- slot;
+- planar face groups;
+- external turned diameter kandydat.
+Każdy feature detector ma test models/golden geometry.
+Dla trudnych części można zwrócić UNKNOWN zamiast błędnie klasyfikować.
+
+
+20. TIME ENGINE – STRATEGIA
+V1: rule/table-based.
+V1.5: wzory oparte o feature count/stock removal/parametry.
+V2: estimator oparty o CAM/toolpath, jeśli ekonomicznie uzasadnione.
+V2.5: ML correction factor.
+Nigdy nie zaczynać od LLM-predicted minutes.
+
+
+21. ML CORRECTION
+Base estimate = deterministyczny.
+Correction model zwraca np. factor 1.08 z confidence interval.
+Final = base * approved factor.
+Model trenowany offline, versioned.
+Przed promotion:
+- train set;
+- validation set;
+- locked benchmark set;
+- metryki per segment;
+- porównanie z poprzednią wersją.
+Model nie jest promowany, jeśli poprawia średnią kosztem poważnego pogorszenia ważnego segmentu bez decyzji.
+
+
+22. SIMILARITY ENGINE
+Feature vector deterministyczny + optional embedding.
+Score przykładowy:
+20% material family
+20% dimensions/volume
+20% process/routing
+15% feature counts
+10% tolerance class
+10% quantity band
+5% embedding
+Wagi konfigurowalne i wersjonowane.
+Każdy wynik pokazuje breakdown.
+
+
+23. DATABASE – NAJWAŻNIEJSZE INVARIANTY
+- unique tenant + rfq number;
+- quote_version immutable after approval;
+- only one active config version for a given effective date;
+- final price cannot be null for APPROVED quote;
+- APPROVED quote references complete snapshot;
+- critical CanonicalRFQ fields cannot be CONFLICT for GREEN.
+Invariants wymuszać również constraints/transakcjami DB, nie tylko UI.
+
+
+24. MULTI-TENANCY
+Każda tabela biznesowa tenant_id.
+Row-level filtering w aplikacji, opcjonalnie Postgres RLS później.
+Żadnych globalnych cache key bez tenant_id.
+Pliki w storage w ścieżce tenant/{tenantId}/...
+
+
+25. SECURITY
+- OIDC/Auth provider;
+- RBAC;
+- signed URLs do plików;
+- secrets w vault/env, nie repo;
+- audit log security events;
+- rate limiting AI endpoints;
+- file type validation;
+- malware scan opcjonalnie;
+- data retention policy;
+- eksport/usunięcie danych klienta zgodnie z umową.
+
+
+26. ERROR HANDLING
+Klasy błędów:
+VALIDATION_ERROR – dane użytkownika.
+MISSING_INPUT – brak krytycznego pola.
+AI_UNAVAILABLE – system przechodzi w manual mode.
+GEOMETRY_PARSE_ERROR – blokada geometrii, ręczne dane możliwe.
+RULE_REJECTION – routing niewykonalny.
+STALE_CONFIGURATION – próba kalkulacji na nieaktualnym draftcie.
+CONCURRENCY_CONFLICT – ktoś edytował wersję.
+Każdy błąd ma user-friendly message + technical correlation ID.
+
+
+27. OBSERVABILITY
+Metryki:
+- RFQ parse latency;
+- STEP parse latency;
+- AI latency/error/token usage;
+- calculation latency;
+- schema validation failures;
+- manual review rate;
+- conflict rate;
+- quote error reports.
+Logi strukturalne z correlation_id/rfq_id/quote_id, bez niepotrzebnych danych wrażliwych.
+
+
+28. TESTOWALNOŚĆ
+Każdy moduł ma interface i fake implementation.
+AI w testach integracyjnych zastępowane fixture responses.
+Clock abstrahowany.
+Rate repository mockowane.
+Geometry fixtures trzymane w repo/test assets lub osobnym test pack.
+
+
+29. REPO – PROPONOWANA STRUKTURA
+/apps/web
+/services/api
+/services/geometry-worker
+/services/ai-gateway
+/packages/contracts
+/packages/ui
+/tests/golden
+/tests/geometry-fixtures
+/docs/adr
+/infra
+
+
+30. ADR – ARCHITECTURE DECISION RECORDS
+Obowiązkowe ADR dla:
+- wyboru kernela STEP;
+- sposobu wyliczania marży;
+- rounding policy;
+- AI provider abstraction;
+- versioning strategy;
+- snapshot format;
+- ML promotion policy.
+Każda poważna decyzja zapisana, żeby za pół roku nie zgadywać 'dlaczego tak zrobiliśmy'.
+
+
+31. WARUNKI PRZENIESIENIA MODUŁU DO PRODUKCJI
+- contract frozen;
+- unit tests;
+- integration tests;
+- negative tests;
+- deterministic replay;
+- logs/metrics;
+- permissions;
+- audit;
+- migration tested;
+- rollback plan;
+- benchmark before/after.
