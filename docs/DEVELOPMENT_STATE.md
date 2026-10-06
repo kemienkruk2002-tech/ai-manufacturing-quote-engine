@@ -4,8 +4,8 @@ Updated: 2026-10-06
 Mode: autonomous backend-first development
 
 ## Baseline
-- Current verified main CI after B3.4: **671 unit + 215 integration = 886/886 passed**.
-- B3.4 merge: `eda1601deddd9e640a756d1e8637733687c501f6`; post-merge run `37435364172` succeeded.
+- Current verified main CI after B3.6: **678 unit + 229 integration = 907/907 passed**.
+- B3.6 merge: `1c217030f2c173128d65235281256b56d8ecbb5e`; post-merge run `37447453645` succeeded.
 - Frozen deterministic engines/snapshots/hashes/replay and existing migration history remain unchanged.
 - B2 focused audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
 
@@ -236,7 +236,7 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 - PR #22 merged as `ab9fa9d0fb034e1ed3781f087288795addc3e714`; post-merge main run `37442192884` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
 - This final documentation-only commit records that repaired verified state and must itself pass GitHub Actions before the next backend task starts.
 
-### B3.6 Review/confirmation backend — DONE_PR_GREEN
+### B3.6 Review/confirmation backend — DONE
 Branch: `auto/b3-6-review-confirmation`.
 
 Scope is limited to backend operations for explicit human review of the current CanonicalRFQ draft. No RFQ status transition or B2.3 workflow policy is defined by this task.
@@ -269,5 +269,29 @@ Scope is limited to backend operations for explicit human review of the current 
 - Repaired head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`: **678/678 unit + 229/229 integration = 907/907 PASS**.
 - Current head contains only plan/state documentation after that verified repaired head and must also pass GitHub Actions before merge.
 
+## B3.6 final CI
+- Final PR #23 head `d06c753877fb592d240776390839adb4828923f6`: run `37447285508` **GREEN**, **678/678 unit + 229/229 integration = 907/907 PASS**.
+- PR #23 merged as `1c217030f2c173128d65235281256b56d8ecbb5e`.
+- Post-merge main run `37447453645`: **GREEN**, **678/678 unit + 229/229 integration = 907/907 PASS**.
+
+### B3 milestone audit — AUDIT_PENDING_CI
+Audit file: `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
+
+Findings:
+- default-deny external AI, explicit `store=false`, strict CanonicalRFQ v1 output validation, immutable attempt lineage and human-review CAS are working as intended;
+- current OpenAI data controls still require an explicit deployment retention posture because abuse-monitoring logs may retain customer content under default controls;
+- audit stress adds 12 concurrent same-version reviews and requires exactly one winner/audit event;
+- **P1 B3.H1:** a stale extraction can currently overwrite a draft changed by a human after extraction started because extraction draft publication has no expected-row-version CAS;
+- **P1 B3.H2:** no tenant HTTP route starts `RfqExtractionServiceV1`;
+- production source materialization remains intentionally fail-closed and is blocked until B4 untrusted-file controls exist;
+- external AI allowlists/redaction/retention remain explicit deployment-policy blockers;
+- extraction fingerprint idempotency semantics and raw-output retention are unresolved policy decisions;
+- B3 review/current-draft routes are missing from the custom OpenAPI document (P2);
+- review source/reason application-specific max lengths are undefined (P2 policy blocker).
+
+## CI state
+- Audit branch `audit/b3-ai-rfq` contains documentation plus a concurrency stress test only.
+- Status: **AUDIT_PENDING_CI**. Do not mark B3 audit DONE until the audit branch passes GitHub Actions.
+
 ## Exact next task
-Inspect GitHub Actions for the exact current PR #23 head. If green, merge PR #23 and verify post-merge `main` CI. After B3.6 is fully merged and green, perform the required focused **B3 milestone audit** in this run, record findings and split follow-ups; do not start B4 or frontend in this run.
+Publish/verify the B3 audit PR. If CI fails, fix only the concrete audit/test failure. If green, merge the audit PR and verify post-merge `main`. On the next autonomous run start exactly **B3.H1 Stale extraction vs human-reviewed draft CAS**. Do not start B4 or frontend in this run.
