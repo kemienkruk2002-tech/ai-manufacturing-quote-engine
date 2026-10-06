@@ -104,7 +104,7 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
             [new(logicalKey, 1, "test-document")]));
 
         Assert.Equal(AiExecutionDisposition.REVIEW_MANUAL, result.Disposition);
-        Assert.Equal("RFQ_EXTRACTION_SOURCE_MATERIALIZER_NOT_CONFIGURED", result.Code);
+        Assert.Equal(RfqExtractionServiceV1.SourceMaterializerNotConfiguredCode, result.Code);
         Assert.Null(result.RequestFingerprint);
         Assert.NotNull(result.StoredExecution);
     }
