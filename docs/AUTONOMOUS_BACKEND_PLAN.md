@@ -190,13 +190,13 @@ Implemented in PR #19. Final PR head `280e39be406b891855df583ac7c12f84d1a5cf8c` 
 
 Implemented in PR #20. Final PR head `0f8e9752864ccc0244c055518e460bf727a46457` passed run `37435238467`; merge `eda1601deddd9e640a756d1e8637733687c501f6`; post-merge main run `37435364172` passed **671 unit + 215 integration = 886/886 PASS**. Source selection is exact-version only; no implicit latest fallback. Source parsing is a fail-closed seam (`IRfqExtractionSourceMaterializer`) because no PDF/STEP/e-mail parser is yet defined. Execution metadata is persisted append-only in existing `audit_events`; dedicated extraction history/draft persistence remains B3.5.
 
-### B3.5 Persist CanonicalRFQ draft — DONE_PR_GREEN
+### B3.5 Persist CanonicalRFQ draft — DONE
 - new immutable extraction attempt/history tables;
 - current reviewed draft separate from raw provider output;
 - source lineage retained;
 - conflict/missing fields remain explicit.
 
-Implemented in PR #21. Repaired head `afd561f146df0e81124c38832860d8a54eb6116e` passed run `37441176622`: **674 unit + 222 integration = 896/896 PASS**. Migration 010 adds immutable, tenant/RFQ-scoped extraction attempts and a separate current CanonicalRFQ draft. Raw provider output is retained separately from validated draft JSON; source lineage is persisted; arbitrary JSON cannot bypass the existing CanonicalRFQ v1 output guard; draft-to-attempt linkage is constrained to the same tenant and RFQ.
+Implemented in PR #21. Repaired implementation head `afd561f146df0e81124c38832860d8a54eb6116e` passed run `37441176622`; final PR head `96097df9ad34d25bcb616e319443ed1067f8e6c7` passed run `37441377856`; merge `7fddfcf4c3936b12f8d3255a3b27520cb7852552`; post-merge main run `37441538770` passed **674 unit + 222 integration = 896/896 PASS**. Migration 010 adds immutable, tenant/RFQ-scoped extraction attempts and a separate current CanonicalRFQ draft. Raw provider output is retained separately from validated draft JSON; source lineage is persisted; arbitrary JSON cannot bypass the existing CanonicalRFQ v1 output guard; draft-to-attempt linkage is constrained to the same tenant and RFQ.
 
 ### B3.6 Review/confirmation backend
 - confirm/reject/correct extracted fields;
