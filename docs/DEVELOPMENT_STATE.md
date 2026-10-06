@@ -4,8 +4,8 @@ Updated: 2026-10-06
 Mode: autonomous backend-first development
 
 ## Baseline
-- Current verified main CI after B3.3: **664 unit + 210 integration = 874/874 passed**.
-- B3.3 merge: `b6ad030f5c4dc2f909bf809c14d870a4180b3627`; post-merge run `37432937882` succeeded.
+- Current verified main CI after B3.4: **671 unit + 215 integration = 886/886 passed**.
+- B3.4 merge: `eda1601deddd9e640a756d1e8637733687c501f6`; post-merge run `37435364172` succeeded.
 - Frozen deterministic engines/snapshots/hashes/replay and existing migration history remain unchanged.
 - B2 focused audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
 
@@ -169,6 +169,9 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 - This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
 ## Current run findings
+### B3.4 RFQ extraction service — DONE
+Branch: `auto/b3-4-rfq-extraction-service`.
+
 - Verified final B3.3 documentation commit `7492fe5bd513ae19a088cd394fe8623cb3db0cc9` first; run `37433357030` completed successfully with **874/874 PASS**.
 - Confirmed there were no open PRs before starting B3.4.
 - Reviewed the RFQ file/version repositories, manifest, immutable file-history migration, audit schema, Host composition root and B3.1-B3.3 AI boundaries before implementation.
@@ -189,7 +192,14 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 ## CI state
 - B3.4 implementation is published on `auto/b3-4-rfq-extraction-service`.
 - Verified PR #20 implementation head `cf8b2f9ffe85a17be7c7d8914c41dc71cea7c5a7` is **GREEN** in run `37435066563`: **671/671 unit + 215/215 integration = 886/886 PASS**.
-- Current head contains only plan/state documentation after that verified implementation and must also pass GitHub Actions before merge.
+- Final PR #20 head `0f8e9752864ccc0244c055518e460bf727a46457` passed run `37435238467`: **886/886 PASS**.
+- PR #20 merged as `eda1601deddd9e640a756d1e8637733687c501f6`.
+- Post-merge main run `37435364172` passed **671/671 unit + 215/215 integration = 886/886 PASS**.
+
+## CI state
+- PR #20 final head `0f8e9752864ccc0244c055518e460bf727a46457`: **GREEN**, run `37435238467`, **886/886 PASS**.
+- Merge `eda1601deddd9e640a756d1e8637733687c501f6`: post-merge `main` run `37435364172` **GREEN**, **671/671 unit + 215/215 integration = 886/886 PASS**.
+- This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
 
 ## Exact next task
-Inspect GitHub Actions for the exact current PR #20 head. If green, merge PR #20 and verify post-merge `main` CI. On a later run, start exactly **B3.5 Persist CanonicalRFQ draft** from verified main. Do not start B3.5 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.5 Persist CanonicalRFQ draft** from verified main: add immutable extraction-attempt/history persistence, keep the current reviewed draft separate from raw provider output, retain source lineage, and keep MISSING/CONFLICT explicit. Do not start B3.6 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
