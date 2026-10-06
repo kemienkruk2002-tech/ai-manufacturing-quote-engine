@@ -57,10 +57,16 @@ public sealed class LocalFileObjectStore : IFileObjectStore
             if (!StringComparer.Ordinal.Equals(actualSha256, expectedSha256))
                 throw new FileObjectHashMismatchException(expectedSha256, actualSha256);
 
-            if (File.Exists(finalPath)) return new(expectedSha256, byteSize, false);
             try
             {
-                File.Move(temporaryPath, finalPath, false);
+                // File.CreateNew is the atomic winner election. A pre-check with File.Exists is
+                // insufficient because two writers can both observe absence before either creates.
+                await using var final = new FileStream(finalPath, FileMode.CreateNew, FileAccess.Write,
+                    FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await using var temporary = new FileStream(temporaryPath, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await temporary.CopyToAsync(final, cancellationToken);
+                await final.FlushAsync(cancellationToken);
                 return new(expectedSha256, byteSize, true);
             }
             catch (IOException) when (File.Exists(finalPath))
