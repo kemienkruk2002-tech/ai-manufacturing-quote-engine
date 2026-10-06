@@ -135,5 +135,10 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 - State-sync main commit `2378fad41a59079c295b7ad4aaea20ac233609cc`: run `37429665374` **GREEN**, **652/652 unit + 206/206 integration = 858/858 PASS**.
 - This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
+### B3.3 AI execution policy — IN_PROGRESS
+Branch: `auto/b3-3-ai-execution-policy`.
+
+Scope: add a default-deny external-AI policy boundary around the existing gateway. The policy will require an explicit per-execution `allow_external_ai` flag plus configured allowlists for use case/model/document type and an explicitly configured positive payload limit. It will expose a redaction seam and deterministic REVIEW/MANUAL outcomes for policy/redaction/provider failures. No allowlist entries, payload limit, redaction rules, endpoint, persistence or business workflow will be invented.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this final documentation-only main commit. If green, start exactly **B3.3 AI execution policy** from verified main: introduce an explicit allow_external_ai gate, configured permitted use cases/models/document types, a redaction seam, bounded payload limits, and deterministic failure to REVIEW/MANUAL without invented fallback. Do not start B3.4 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Implement B3.3 policy contracts/service/configuration and focused tests, publish a PR, and require green GitHub Actions. Do not start B3.4 or frontend in this run.
