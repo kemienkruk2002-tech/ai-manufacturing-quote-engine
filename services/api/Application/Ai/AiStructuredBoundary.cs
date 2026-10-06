@@ -1,5 +1,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Globalization;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -76,7 +78,7 @@ public static class AiInputJsonNormalizerV1
                 writer.WriteStringValue(element.GetString());
                 break;
             case JsonValueKind.Number:
-                writer.WriteRawValue(element.GetRawText(), skipInputValidation: true);
+                writer.WriteRawValue(NormalizeNumber(element.GetRawText()), skipInputValidation: true);
                 break;
             case JsonValueKind.True:
                 writer.WriteBooleanValue(true);
@@ -90,6 +92,39 @@ public static class AiInputJsonNormalizerV1
             default:
                 throw new InvalidOperationException("Unsupported JSON token.");
         }
+    }
+
+    private static string NormalizeNumber(string raw)
+    {
+        var negative = raw[0] == '-';
+        var unsigned = negative ? raw[1..] : raw;
+        var exponentIndex = unsigned.IndexOfAny(['e', 'E']);
+        var mantissa = exponentIndex >= 0 ? unsigned[..exponentIndex] : unsigned;
+        var exponent = exponentIndex >= 0
+            ? BigInteger.Parse(unsigned[(exponentIndex + 1)..],
+                NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture)
+            : BigInteger.Zero;
+
+        var decimalIndex = mantissa.IndexOf('.');
+        var integerPart = decimalIndex >= 0 ? mantissa[..decimalIndex] : mantissa;
+        var fractionalPart = decimalIndex >= 0 ? mantissa[(decimalIndex + 1)..] : string.Empty;
+        var digits = (integerPart + fractionalPart).TrimStart('0');
+        if (digits.Length == 0) return "0";
+
+        var scale = exponent - fractionalPart.Length;
+        var trailingZeros = 0;
+        for (var index = digits.Length - 1; index >= 0 && digits[index] == '0'; index--)
+            trailingZeros++;
+        if (trailingZeros > 0)
+        {
+            digits = digits[..^trailingZeros];
+            scale += trailingZeros;
+        }
+
+        var sign = negative ? "-" : string.Empty;
+        return scale.IsZero
+            ? sign + digits
+            : sign + digits + "e" + scale.ToString(CultureInfo.InvariantCulture);
     }
 }
 
