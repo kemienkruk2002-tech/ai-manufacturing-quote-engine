@@ -205,10 +205,10 @@ Implemented in PR #21. Repaired implementation head `afd561f146df0e81124c3883286
 
 Implemented in PR #23. Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`; repaired runtime/test head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`; final PR head `d06c753877fb592d240776390839adb4828923f6` passed run `37447285508`; merge `1c217030f2c173128d65235281256b56d8ecbb5e`; post-merge main run `37447453645` passed **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
 
-### B3 audit — AUDIT_PENDING_CI
+### B3 audit — DONE_PR_GREEN
 Audit: `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
 
-Security/privacy, hallucination/fallback, reproducibility, concurrency/load and idempotency behavior were reviewed after B3.6 merged green. Audit branch adds a PostgreSQL stress test requiring exactly one winner from 12 concurrent same-version human reviews.
+Security/privacy, hallucination/fallback, reproducibility, concurrency/load and idempotency behavior were reviewed after B3.6 merged green. Audit PR #24 implementation head `355fc71d74994651946c186be9af7cc43f41e1f5` passed run `37448282017`: **678 unit + 230 integration = 908/908 PASS**. The audit adds a PostgreSQL stress test requiring exactly one winner from 12 concurrent same-version human reviews.
 
 The audit found no hallucination/fallback P0, but B3 is not yet production end-to-end. Hardening tasks below run before B4 runtime work.
 
