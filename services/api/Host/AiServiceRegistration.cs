@@ -13,6 +13,15 @@ public sealed class AiIntegrationOptions
     public int[] RetryDelaysMs { get; init; } = [];
 }
 
+public sealed class AiExecutionPolicyOptions
+{
+    public const string SectionName = "Ai:Policy";
+    public string[] PermittedUseCases { get; init; } = [];
+    public string[] PermittedModels { get; init; } = [];
+    public string[] PermittedDocumentTypes { get; init; } = [];
+    public int MaxPayloadBytes { get; init; }
+}
+
 public static class AiHttpClientNames
 {
     public const string OpenAiResponses = "QuoteEngine.OpenAI.Responses";
@@ -34,6 +43,18 @@ public static class AiServiceRegistration
                 "Ai:ApiKey is required when AI is enabled.")
             .Validate(options => !options.Enabled || options.RetryDelaysMs.All(delay => delay >= 0),
                 "Ai:RetryDelaysMs values must be greater than or equal to zero when AI is enabled.")
+            .ValidateOnStart();
+
+        services.AddOptions<AiExecutionPolicyOptions>()
+            .Bind(configuration.GetSection(AiExecutionPolicyOptions.SectionName))
+            .Validate(options => options.MaxPayloadBytes >= 0,
+                "Ai:Policy:MaxPayloadBytes must be greater than or equal to zero.")
+            .Validate(options => ValidEntries(options.PermittedUseCases),
+                "Ai:Policy:PermittedUseCases cannot contain blank values.")
+            .Validate(options => ValidEntries(options.PermittedModels),
+                "Ai:Policy:PermittedModels cannot contain blank values.")
+            .Validate(options => ValidEntries(options.PermittedDocumentTypes),
+                "Ai:Policy:PermittedDocumentTypes cannot contain blank values.")
             .ValidateOnStart();
 
         services.AddHttpClient(AiHttpClientNames.OpenAiResponses, (provider, client) =>
@@ -69,12 +90,32 @@ public static class AiServiceRegistration
                 ? provider.GetRequiredService<RetryingAiStructuredProviderV1>()
                 : new DisabledAiStructuredProvider());
         services.AddTransient<AiGatewayV1>();
+        services.AddSingleton<IAiInputRedactor, BlockingAiInputRedactor>();
+        services.AddTransient<AiExecutionPolicyV1>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<AiExecutionPolicyOptions>>().Value;
+            return new(
+                options.PermittedUseCases.ToHashSet(StringComparer.Ordinal),
+                options.PermittedModels.ToHashSet(StringComparer.Ordinal),
+                options.PermittedDocumentTypes.ToHashSet(StringComparer.Ordinal),
+                options.MaxPayloadBytes);
+        });
+        services.AddTransient<AiPolicyExecutorV1>();
         return services;
     }
 
     private static bool IsValidHttpsBaseUrl(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static bool ValidEntries(IEnumerable<string> values) =>
+        values.All(value => !string.IsNullOrWhiteSpace(value));
+
+    private sealed class BlockingAiInputRedactor : IAiInputRedactor
+    {
+        public AiRedactionResult Redact(string normalizedInputJson) =>
+            AiRedactionResult.Blocked(AiPolicyExecutorV1.RedactionNotConfiguredCode);
+    }
 
     private sealed class DisabledAiStructuredProvider : IAiStructuredProvider
     {
