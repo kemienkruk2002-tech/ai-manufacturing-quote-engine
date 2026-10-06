@@ -33,6 +33,35 @@ public sealed class AiStructuredBoundaryTests
             Fingerprint(Request() with { NormalizedInputJson = second }));
     }
 
+    [Theory]
+    [InlineData("""{"n":1}""")]
+    [InlineData("""{"n":1.0}""")]
+    [InlineData("""{"n":10e-1}""")]
+    [InlineData("""{"n":0.10e1}""")]
+    public void Equivalent_number_lexemes_have_identical_normalization_and_fingerprint(string json)
+    {
+        var normalized = AiInputJsonNormalizerV1.Normalize(json);
+
+        Assert.True(normalized.IsValid);
+        Assert.Equal("""{"n":1}""", normalized.NormalizedJson);
+        Assert.Equal(
+            Fingerprint(Request() with { NormalizedInputJson = """{"n":1}""" }),
+            Fingerprint(Request() with { NormalizedInputJson = json }));
+    }
+
+    [Theory]
+    [InlineData("""{"n":1000}""", """{"n":1e3}""")]
+    [InlineData("""{"n":0.001}""", """{"n":1e-3}""")]
+    [InlineData("""{"n":-0.0}""", """{"n":0}""")]
+    public void Exact_decimal_number_normalization_does_not_require_floating_point(
+        string input, string expected)
+    {
+        var normalized = AiInputJsonNormalizerV1.Normalize(input);
+
+        Assert.True(normalized.IsValid);
+        Assert.Equal(expected, normalized.NormalizedJson);
+    }
+
     [Fact]
     public void Array_order_and_value_types_remain_semantically_significant()
     {
