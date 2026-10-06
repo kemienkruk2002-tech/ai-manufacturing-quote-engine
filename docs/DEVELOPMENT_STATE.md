@@ -20,10 +20,11 @@ PR #12; merge `ceb458d203c5a298ddfdf0f2adb7a3c865dfb757`; post-merge run `373981
 ### B2.5 File manifest endpoints — DONE
 PR #13; head `8982c2b7e6736ce24401d2215a08515a3a9d77c5`; PR run `37413528883` succeeded with **641 unit + 183 integration = 824/824 PASS**. Merge `e8cc222f1cfc3d9c8b43231b6ed9a29fad6877c6`; post-merge main run `37414197830` also succeeded with **824/824 PASS**.
 
-### B2 audit — IN_PROGRESS
+### B2 audit — CI_FIX_IN_PROGRESS
 Branch: `auto/b2-audit`
+PR: #14
 
-Scope is documentation/evidence only: full DB/API audit, replay evidence, tenant-isolation review, blockers and follow-up task split. No business policy will be invented.
+The first PR run exposed a pre-existing local object-store concurrency race. Audit completion is paused until that concrete CI failure is fixed and the exact new head is green.
 
 ## Known blockers
 - B2.3: RFQ transition/readiness business policy missing.
@@ -42,13 +43,17 @@ Scope is documentation/evidence only: full DB/API audit, replay evidence, tenant
 
 ## Current run findings
 - Read current main plan, development state and project audit before taking action.
-- Inspected pending B2.5 gate first. PR #13 had already been merged, but the exact PR head `8982c2b7e6736ce24401d2215a08515a3a9d77c5` had green Actions run `37413528883`: 641 unit + 183 integration, 824/824 total.
-- Verified post-merge `main` at `e8cc222f1cfc3d9c8b43231b6ed9a29fad6877c6`; push run `37414197830` is green with the same 824/824 counts.
-- Started the required focused B2 audit as the next smallest unblocked task. No frontend work started.
+- Inspected PR #14 CI first. Run `37415113531` failed with **640/641 unit PASS** and **183/183 integration PASS**.
+- The sole failure was `LocalFileObjectStoreTests.Concurrent_puts_of_same_hash_create_one_correct_object`: two concurrent writers both returned `Created=true` for the same SHA-256.
+- Root cause: `File.Exists(finalPath)` followed by `File.Move(..., overwrite:false)` is not a reliable winner-election contract on the CI filesystem; two writers can observe absence and both report creation.
+- Fixed only this concrete failure: the final object path is now acquired atomically with `FileMode.CreateNew`; exactly one writer can create the final object and losers return `Created=false` when the path already exists. Content is still hashed before publication and immutable/content-addressed semantics are preserved.
+- Runtime fix commit: `cbe86404ec118e7d2a8cadaa4fdf81733e8d0b54`.
+- No deterministic calculation engine, canonical snapshot/hash/replay behavior, migration history, tenant policy or business workflow policy was changed.
 
 ## CI state
-- Verified main: **GREEN**, run `37414197830`, 824/824 PASS.
-- B2 audit branch is documentation-only and is not DONE until its own PR CI is green.
+- Verified main remains **GREEN**, run `37414197830`, 824/824 PASS.
+- PR #14 previous head failed only the object-store concurrency unit test; integration was 183/183 green.
+- New PR head after the focused fix is **CI_PENDING**. Do not mark the audit DONE or merge until GitHub Actions is green for the exact current head.
 
 ## Exact next task
-Complete the focused B2 audit on `auto/b2-audit`: record DB/API/replay/tenant-isolation evidence, identify concrete findings, split independent follow-up work into small tasks in AUTONOMOUS_BACKEND_PLAN.md, publish the audit PR, and require green CI before marking the audit DONE. B2.3/B2.4 post-analysis semantics remain blocked unless workflow policy is supplied.
+Inspect PR #14 CI for the current head first. If it fails, fix only the concrete failure. If green, continue and complete the focused B2 DB/API/replay/tenant-isolation audit, split findings into small follow-up tasks in AUTONOMOUS_BACKEND_PLAN.md, update this state, and require green CI before marking B2 audit DONE. B2.3/B2.4 post-analysis semantics remain blocked unless workflow policy is supplied.
