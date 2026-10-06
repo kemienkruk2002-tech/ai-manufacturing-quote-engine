@@ -54,7 +54,15 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue("Dev:Golde
 var tenantApi = app.MapGroup("/api/tenants/{tenantId:guid}").RequireAuthorization(ApiAuthorizationPolicies.TenantRfqAccess);
 tenantApi.MapPost("/rfqs", async (Guid tenantId, CreateRfqRequest input, ITenantContext tenantContext, IQuoteRequestRepository repository, CancellationToken token) =>
 {
-    var trustedTenantId = tenantContext.RequireRouteTenant(tenantId); var id = input.Id ?? Guid.NewGuid(); var rfq = new QuoteRequest(trustedTenantId, id, input.PartRevisionId, input.RequestedQuantity, input.Status ?? QuoteStatus.New, input.Currency ?? "PLN", input.CustomerId, input.ExternalRfqNo, input.RequestedDueDate); var created = await repository.CreateAsync(rfq, token); return Results.Created($"/api/tenants/{trustedTenantId}/rfqs/{created.Id}", created);
+    var trustedTenantId = tenantContext.RequireRouteTenant(tenantId);
+    if (input.Status is { } requestedStatus && requestedStatus != QuoteStatus.New)
+        return Results.Problem(statusCode: 400, title: "RFQ creation only supports New draft status.",
+            extensions: new Dictionary<string, object?> { ["code"] = "RFQ_CREATE_STATUS_INVALID" });
+    var id = input.Id ?? Guid.NewGuid();
+    var rfq = new QuoteRequest(trustedTenantId, id, input.PartRevisionId, input.RequestedQuantity,
+        QuoteStatus.New, input.Currency ?? "PLN", input.CustomerId, input.ExternalRfqNo, input.RequestedDueDate);
+    var created = await repository.CreateAsync(rfq, token);
+    return Results.Created($"/api/tenants/{trustedTenantId}/rfqs/{created.Id}", created);
 }).WithName("CreateRfq");
 tenantApi.MapGet("/rfqs/{quoteRequestId:guid}", async (Guid tenantId, Guid quoteRequestId, ITenantContext tenantContext, IQuoteRequestRepository repository, CancellationToken token) => { var trustedTenantId = tenantContext.RequireRouteTenant(tenantId); return await repository.FindAsync(trustedTenantId, quoteRequestId, token) is { } rfq ? Results.Ok(rfq) : Results.NotFound(); }).WithName("GetRfq");
 tenantApi.MapGet("/rfqs", async (Guid tenantId, QuoteStatus? status, Guid? customerId, DateOnly? dueFrom, DateOnly? dueTo, ITenantContext tenantContext, IQuoteRequestRepository repository, CancellationToken token) => { var trustedTenantId = tenantContext.RequireRouteTenant(tenantId); return Results.Ok(await repository.ListAsync(trustedTenantId, new(status, customerId, dueFrom, dueTo), token)); }).WithName("ListRfqs");

@@ -33,7 +33,7 @@ The final implementation keeps a complete hash-verified temporary object, serial
 ### B2 audit — DONE
 DB/API/replay/tenant-isolation findings are recorded in `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`. PR #14 and post-merge main CI are green. PR #15 synchronized the verified final status and its post-merge main CI is also green.
 
-### B2.H2 Draft-only RFQ creation guard — READY
+### B2.H2 Draft-only RFQ creation guard — DONE
 B2.2 requires create-draft semantics, but the current create DTO accepts arbitrary status. Restrict creation to `New` without defining any later workflow transition.
 
 ## Known blockers
@@ -70,5 +70,21 @@ B2.2 requires create-draft semantics, but the current create DTO accepts arbitra
 - Verified main before this state-only commit: **GREEN**, run `37424631448`, **824/824 PASS**.
 - This commit only synchronizes DEVELOPMENT_STATE.md after the verified PR #15 merge and must itself pass GitHub Actions before the next task starts.
 
+## Current run findings
+- Verified the preceding state-only main commit `0e837b7b12d2052be9942cc0633b9a66cf0d4fcf` first; run `37424813843` completed successfully.
+- Started B2.H2 from that verified main on `auto/b2-h2-draft-only-create`.
+- Confirmed the concrete audit finding in source: `CreateRfqRequest.Status` was passed directly into `QuoteRequest`, and `QuoteRequestRepository.CreateAsync` also accepted non-`New` statuses.
+- Added an API guard: omitted or explicit `New` is accepted; every explicit non-`New` status returns HTTP 400 with code `RFQ_CREATE_STATUS_INVALID`.
+- Repository creation now independently rejects every non-`New` status, so callers cannot bypass the HTTP guard through the application repository abstraction.
+- Existing read/list support for historical/non-draft statuses is preserved; tests that need an existing `DataReview` record seed that state directly instead of using the draft-create path.
+- Added `RfqCreateApiTests` covering normal draft creation, explicit `New`, all eight non-`New` enum values, and proof that rejected requests persist no RFQ row.
+- Updated repository integration coverage to reject all non-`New` create attempts while preserving list filtering and non-draft update rejection.
+- No migration, state-transition graph, approval/readiness rule, deterministic engine, snapshot/hash/replay contract, immutable history or tenant isolation behavior was changed.
+- PR #16 implementation head `a18b20934ed5ce62e2da704c2c5d2a022bfde749` passed run `37426044035` with **841/841 PASS**.
+
+## CI state
+- PR #16 implementation head `a18b20934ed5ce62e2da704c2c5d2a022bfde749` is **GREEN** in run `37426044035`: **641/641 unit + 200/200 integration = 841/841 PASS**.
+- Current head contains only status documentation after that verified implementation and must also pass GitHub Actions before merge.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this state-only commit. If green, start exactly **B2.H2 draft-only RFQ creation guard** from verified main, add focused API/repository tests, publish a task PR, and require green GitHub Actions. Do not start B3 before B2.H2 is green. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #16 head. If green, merge PR #16 and verify post-merge `main` CI. On a later run, if main is green, B3.1 AI configuration + DI is the next independent backend milestone task while B2.3/B2.4b remain blocked unless workflow policy is supplied. Do not start B3 in this run.
