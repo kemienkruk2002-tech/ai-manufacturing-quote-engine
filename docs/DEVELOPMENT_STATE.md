@@ -135,10 +135,29 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 - State-sync main commit `2378fad41a59079c295b7ad4aaea20ac233609cc`: run `37429665374` **GREEN**, **652/652 unit + 206/206 integration = 858/858 PASS**.
 - This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
-### B3.3 AI execution policy — IN_PROGRESS
+### B3.3 AI execution policy — CI_PENDING
 Branch: `auto/b3-3-ai-execution-policy`.
 
 Scope: add a default-deny external-AI policy boundary around the existing gateway. The policy will require an explicit per-execution `allow_external_ai` flag plus configured allowlists for use case/model/document type and an explicitly configured positive payload limit. It will expose a redaction seam and deterministic REVIEW/MANUAL outcomes for policy/redaction/provider failures. No allowlist entries, payload limit, redaction rules, endpoint, persistence or business workflow will be invented.
 
+## Current run findings
+- Verified final B3.2 state commit `66f785c3fac9016c65a33353637d6691116da0a0` first; run `37429863910` completed successfully with **858/858 PASS**.
+- Confirmed there were no open PRs before starting B3.3.
+- Primary-source review: OWASP recommends allowlist validation, bounded input, separation of untrusted content and treating model output as untrusted; OpenAI documents that API customer content may appear in default abuse-monitoring logs. These findings are recorded in ADR 002.
+- Added `AiPolicyExecutorV1` as a default-deny application boundary around `AiGatewayV1`.
+- External execution now requires explicit per-call `AllowExternalAi=true`, configured ordinal allowlists for use case/model/document type, at least one document type, and an explicitly configured positive UTF-8 payload limit.
+- Input size is checked before redaction and checked again after redaction.
+- Added `IAiInputRedactor` seam. The Host default redactor always blocks with `AI_REDACTION_NOT_CONFIGURED`; no redaction/PII rule was invented.
+- Policy, redaction, invalid redactor output, gateway output validation and provider failures all terminate in deterministic `REVIEW_MANUAL`; no fallback model or fabricated output is introduced.
+- Added `Ai:Policy` host configuration for allowlists and max payload bytes. Empty allowlists and zero limit are valid but deny execution.
+- Added focused unit tests proving per-call consent, use-case/model/document-type allowlists, required document type, payload limits, redaction blocking/validation, provider-visible redacted input, and provider failure behavior.
+- Added host integration coverage proving default deny, default blocking redactor, startup validation for blank allowlist entries and negative payload limit.
+- Added `docs/adr/002-external-ai-execution-policy.md` and README deployment documentation.
+- No B3.4 endpoint/service/persistence, CanonicalRFQ v1 schema, deterministic calculation engine, snapshot/hash/replay, migration, immutable history, tenant isolation, pricing, workflow or approval policy changed.
+
+## CI state
+- B3.3 implementation is published on `auto/b3-3-ai-execution-policy`.
+- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+
 ## Exact next task
-Implement B3.3 policy contracts/service/configuration and focused tests, publish a PR, and require green GitHub Actions. Do not start B3.4 or frontend in this run.
+Open/inspect the B3.3 PR CI. If it fails, fix only the concrete failure. If green, record the exact green head in plan/state, merge only that verified head, and verify post-merge `main` CI. Do not start B3.4 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
