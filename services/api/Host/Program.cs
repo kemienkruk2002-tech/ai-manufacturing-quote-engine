@@ -22,6 +22,7 @@ builder.Services.AddAuthorization(options => options.AddPolicy(ApiAuthorizationP
 {
     policy.RequireAuthenticatedUser(); policy.RequireAssertion(context => { var claims = context.User.FindAll(ClaimsTenantContext.TenantClaimType).ToArray(); return claims.Length == 1 && Guid.TryParse(claims[0].Value, out var tenantId) && tenantId != Guid.Empty; });
 }));
+builder.Services.AddQuoteEngineAi(builder.Configuration);
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     var statusCode = context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode; context.ProblemDetails.Status = statusCode; context.ProblemDetails.Extensions["correlation_id"] = context.HttpContext.TraceIdentifier;
