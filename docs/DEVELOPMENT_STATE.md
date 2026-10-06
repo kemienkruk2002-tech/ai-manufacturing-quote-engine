@@ -236,7 +236,7 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 - PR #22 merged as `ab9fa9d0fb034e1ed3781f087288795addc3e714`; post-merge main run `37442192884` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
 - This final documentation-only commit records that repaired verified state and must itself pass GitHub Actions before the next backend task starts.
 
-### B3.6 Review/confirmation backend — CI_PENDING
+### B3.6 Review/confirmation backend — DONE_PR_GREEN
 Branch: `auto/b3-6-review-confirmation`.
 
 Scope is limited to backend operations for explicit human review of the current CanonicalRFQ draft. No RFQ status transition or B2.3 workflow policy is defined by this task.
@@ -261,8 +261,10 @@ Scope is limited to backend operations for explicit human review of the current 
 - No migration, pricing, margin, workflow transition, geometry, calculation engine, canonical calculation snapshot/hash/replay or frontend behavior was changed.
 
 ## CI state
-- Implementation is published on `auto/b3-6-review-confirmation`.
-- Status: **CI_PENDING** until the exact PR head passes GitHub Actions.
+- Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` is **GREEN** in run `37446537854`: **678/678 unit + 229/229 integration = 907/907 PASS**.
+- Focused review removed a competing parallel review-store/migration implementation before this verified head. The PR now contains one review model only: current CanonicalRFQ draft + existing immutable `audit_events`.
+- Focused review also confirmed that no repository policy identifies which CanonicalRFQ fields are business-critical for RFQ lifecycle progression. B3.6 therefore reports all unresolved MISSING/CONFLICT facts as review blockers but does not claim that all are lifecycle-critical and never changes RFQ status. Actual progression policy remains blocked by B2.3.
+- Current head contains only plan/state documentation after the verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Inspect CI for the exact B3.6 PR head. If it fails, fix only the concrete failure. If green, perform a focused B3.6 review, record exact counts, merge only the verified head and verify post-merge `main`. Do not start the B3 audit or frontend in this run.
+Inspect GitHub Actions for the exact current PR #23 head. If green, merge PR #23 and verify post-merge `main` CI. After B3.6 is fully merged and green, perform the required focused **B3 milestone audit** in this run, record findings and split follow-ups; do not start B4 or frontend in this run.
