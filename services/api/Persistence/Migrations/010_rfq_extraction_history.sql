@@ -12,6 +12,7 @@ CREATE TABLE rfq_extraction_attempts (
     raw_provider_output TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (tenant_id, id),
+    UNIQUE (tenant_id, quote_request_id, id),
     FOREIGN KEY (tenant_id, quote_request_id) REFERENCES quote_requests(tenant_id, id)
 );
 CREATE INDEX ix_rfq_extraction_attempts_rfq
@@ -27,7 +28,8 @@ CREATE TABLE rfq_canonical_drafts (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, quote_request_id),
     FOREIGN KEY (tenant_id, quote_request_id) REFERENCES quote_requests(tenant_id, id),
-    FOREIGN KEY (tenant_id, source_attempt_id) REFERENCES rfq_extraction_attempts(tenant_id, id)
+    FOREIGN KEY (tenant_id, quote_request_id, source_attempt_id)
+        REFERENCES rfq_extraction_attempts(tenant_id, quote_request_id, id)
 );
 
 CREATE FUNCTION reject_rfq_extraction_attempt_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
