@@ -79,32 +79,37 @@ public sealed class RfqExtractionServiceV1(
         var execution = await policyExecutor.ExecuteAsync(new(aiRequest, request.AllowExternalAi,
             selected.Select(x => x.DocumentType).ToArray()), cancellationToken);
         var effectiveFingerprint = execution.GatewayResult?.Fingerprint ?? fingerprint.Fingerprint;
-        var stored = await executions.SaveAsync(new(request.TenantId, request.QuoteRequestId, request.ModelId,
-            RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion, effectiveFingerprint,
-            execution.Disposition, execution.Code), cancellationToken);
         var rawProviderOutput = execution.GatewayResult?.RawProviderJson;
         var canonicalDraft = execution.Disposition == AiExecutionDisposition.COMPLETED
             && execution.GatewayResult is { IsPass: true } ? rawProviderOutput : null;
-        var persisted = await executions.SaveAttemptAsync(new(request.TenantId, request.QuoteRequestId,
-            request.ModelId, RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
-            effectiveFingerprint, execution.Disposition, execution.Code, sourceLineage,
-            rawProviderOutput, canonicalDraft), cancellationToken);
+        var atomic = await executions.SaveAtomicAsync(
+            new(request.TenantId, request.QuoteRequestId, request.ModelId,
+                RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion, effectiveFingerprint,
+                execution.Disposition, execution.Code),
+            new(request.TenantId, request.QuoteRequestId,
+                request.ModelId, RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
+                effectiveFingerprint, execution.Disposition, execution.Code, sourceLineage,
+                rawProviderOutput, canonicalDraft),
+            cancellationToken);
         return new(execution.Disposition, execution.Code, effectiveFingerprint, request.ModelId,
             RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
-            execution.GatewayResult, stored, persisted);
+            execution.GatewayResult, atomic.Execution, atomic.Persistence);
     }
 
     private async Task<RfqExtractionServiceResult> PersistReviewAsync(RfqExtractionServiceRequest request,
         string code, string? fingerprint, string sourceLineage, CancellationToken cancellationToken)
     {
-        var stored = await executions.SaveAsync(new(request.TenantId, request.QuoteRequestId, request.ModelId,
-            RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion, fingerprint,
-            AiExecutionDisposition.REVIEW_MANUAL, code), cancellationToken);
-        var persisted = await executions.SaveAttemptAsync(new(request.TenantId, request.QuoteRequestId,
-            request.ModelId, RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
-            fingerprint, AiExecutionDisposition.REVIEW_MANUAL, code, sourceLineage, null, null), cancellationToken);
+        var atomic = await executions.SaveAtomicAsync(
+            new(request.TenantId, request.QuoteRequestId, request.ModelId,
+                RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion, fingerprint,
+                AiExecutionDisposition.REVIEW_MANUAL, code),
+            new(request.TenantId, request.QuoteRequestId,
+                request.ModelId, RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
+                fingerprint, AiExecutionDisposition.REVIEW_MANUAL, code, sourceLineage, null, null),
+            cancellationToken);
         return new(AiExecutionDisposition.REVIEW_MANUAL, code, fingerprint, request.ModelId,
-            RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion, null, stored, persisted);
+            RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
+            null, atomic.Execution, atomic.Persistence);
     }
 
     private static string SerializeRequestedLineage(IEnumerable<RfqExtractionSourceSelection> sources) =>
