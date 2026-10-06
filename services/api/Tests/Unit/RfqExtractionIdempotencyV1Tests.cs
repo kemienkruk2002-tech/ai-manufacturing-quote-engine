@@ -38,6 +38,11 @@ public sealed class RfqExtractionIdempotencyV1Tests
         var changed = RfqExtractionIdempotencyV1.Create("retry-1", TenantId, RfqId, modelId, allowExternalAi,
             [new("drawing", 1, documentType)]);
 
+        var requestActuallyChanged = allowExternalAi != true
+            || !string.Equals(modelId, "model-a", StringComparison.Ordinal)
+            || !string.Equals(documentType, "pdf", StringComparison.Ordinal);
+
+        Assert.True(requestActuallyChanged, "Test data must change at least one hashed request field.");
         Assert.NotEqual(baseline.RequestHash, changed.RequestHash);
     }
 
