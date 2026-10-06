@@ -56,6 +56,7 @@ public sealed class RfqExtractionServiceV1(
     public const string SourceRequiredCode = "RFQ_EXTRACTION_SOURCE_REQUIRED";
     public const string SourceNotFoundCode = "RFQ_EXTRACTION_SOURCE_NOT_FOUND";
     public const string SourceMaterializationFailedCode = "RFQ_EXTRACTION_SOURCE_MATERIALIZATION_FAILED";
+    public const string SourceMaterializerNotConfiguredCode = "RFQ_EXTRACTION_SOURCE_MATERIALIZER_NOT_CONFIGURED";
     public const string DuplicateSourceCode = "RFQ_EXTRACTION_SOURCE_DUPLICATE";
     public const string RfqNotFoundCode = "RFQ_EXTRACTION_RFQ_NOT_FOUND";
 
