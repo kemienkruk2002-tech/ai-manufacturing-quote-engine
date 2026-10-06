@@ -129,5 +129,11 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 - PR #18 merged as `470f87a2a3e11431f377940de43549535fd62c46`.
 - Post-merge main run `37429487560` passed **652/652 unit + 206/206 integration = 858/858 PASS**.
 
+## CI state
+- PR #18 final head `3aeafbd0e6b7de06d0adc280fb62ddfb4f61f53b`: **GREEN**, run `37429341570`, **858/858 PASS**.
+- Merge `470f87a2a3e11431f377940de43549535fd62c46`: post-merge `main` run `37429487560` **GREEN**, **858/858 PASS**.
+- State-sync main commit `2378fad41a59079c295b7ad4aaea20ac233609cc`: run `37429665374` **GREEN**, **652/652 unit + 206/206 integration = 858/858 PASS**.
+- This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
+
 ## Exact next task
-On the next autonomous run, first verify CI for the final state-only main commit. If green, start exactly **B3.3 AI execution policy** from verified main: introduce an explicit allow_external_ai gate, configured permitted use cases/models/document types, a redaction seam, bounded payload limits, and deterministic failure to REVIEW/MANUAL without invented fallback. Do not start B3.4 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+On the next autonomous run, first verify CI for this final documentation-only main commit. If green, start exactly **B3.3 AI execution policy** from verified main: introduce an explicit allow_external_ai gate, configured permitted use cases/models/document types, a redaction seam, bounded payload limits, and deterministic failure to REVIEW/MANUAL without invented fallback. Do not start B3.4 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
