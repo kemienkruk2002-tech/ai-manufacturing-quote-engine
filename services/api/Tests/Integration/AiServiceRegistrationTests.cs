@@ -173,22 +173,26 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
     }
 
     [Fact]
-    public void Enabled_ai_with_negative_retry_delay_fails_startup_validation()
+    public void Enabled_ai_with_negative_retry_delay_fails_options_validation()
     {
-        using var factory = Factory(new Dictionary<string, string?>
-        {
-            ["Ai:Enabled"] = "true",
-            ["Ai:ApiKey"] = "integration-test-secret",
-            ["Ai:RetryDelaysMs:0"] = "-1"
-        });
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Ai:Enabled"] = "true",
+                ["Ai:ApiKey"] = "integration-test-secret",
+                ["Ai:RetryDelaysMs:0"] = "-1"
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddQuoteEngineAi(configuration);
+        using var provider = services.BuildServiceProvider();
 
-        var error = Assert.ThrowsAny<Exception>(() =>
-        {
-            using var _ = factory.CreateClient();
-        });
+        var error = Assert.Throws<OptionsValidationException>(() =>
+            _ = provider.GetRequiredService<IOptions<AiIntegrationOptions>>().Value);
 
-        Assert.Contains("Ai:RetryDelaysMs values must be greater than or equal to zero when AI is enabled.",
-            error.ToString(), StringComparison.Ordinal);
+        Assert.Contains(
+            "Ai:RetryDelaysMs values must be greater than or equal to zero when AI is enabled.",
+            error.Failures);
     }
 
     [Fact]
