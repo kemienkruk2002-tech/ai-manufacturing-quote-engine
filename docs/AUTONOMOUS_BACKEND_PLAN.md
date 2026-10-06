@@ -158,11 +158,13 @@ PR #14 merged as `2762f8998a7c8dd4e6c871b731d1fac40b7decdb`; post-merge main run
 
 Goal: turn the already-tested AI library into a controlled production backend feature.
 
-### B3.1 AI configuration + DI
+### B3.1 AI configuration + DI — DONE_PR_GREEN
 - register HttpClient, OpenAiResponsesProviderV1, retry wrapper and AiGatewayV1;
 - configuration validation;
 - no API key in repository/logs;
 - AI can be disabled per environment.
+
+Implemented in PR #17. Verified implementation head `1aac38c1af6d9ed82670a9fd20ee0271b8a38030` passed run `37427572933`: **641 unit + 206 integration = 847/847 PASS**. Disabled mode fails closed with provider code `AI_DISABLED` and performs no external request. Retry timing remains explicit configuration; no schedule was invented.
 
 ### B3.2 Deterministic AI input normalization
 - canonicalize normalized JSON before fingerprinting;
