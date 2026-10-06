@@ -273,14 +273,23 @@ Scope is limited to backend operations for explicit human review of the current 
 Inspect GitHub Actions for the exact current PR #23 head. If green, merge PR #23 and verify post-merge `main` CI. After B3.6 is fully merged and green, perform the required focused **B3 milestone audit** in this run, record findings and split follow-ups; do not start B4 or frontend in this run.
 
 
-### B3.H1 Atomic extraction persistence — IN_PROGRESS
+### B3.H1 Atomic extraction persistence — CI_PENDING
 Branch: `auto/b3-h1-atomic-extraction-persistence`.
 
 - Verified current main `4de58b07c0ae35f8fbd502b68f898cad6533060f` and green run `37456965868`.
-- Read B3 audit `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
-- Selected exactly B3.H1 as the smallest unblocked READY follow-up.
-- Scope: make durable extraction execution audit + immutable attempt + optional current-draft update all-or-nothing in one PostgreSQL transaction.
-- Do not start B3.H2/H3/H4, B4 or frontend in this run.
+- Read B3 audit `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md` and selected exactly B3.H1 as the smallest unblocked READY follow-up.
+- Added `IRfqExtractionExecutionRepository.SaveAtomicAsync`, returning both durable execution audit and extraction attempt/current-draft result.
+- `RfqExtractionServiceV1` now performs one durable repository call for both COMPLETED and REVIEW_MANUAL outcomes; it no longer does independent `SaveAsync` then `SaveAttemptAsync` calls.
+- PostgreSQL implementation validates audit/attempt consistency, opens one transaction, inserts the existing `RFQ_AI_EXTRACTION_EXECUTION` audit row, inserts the immutable extraction attempt, optionally upserts the validated current CanonicalRFQ draft, then commits.
+- Existing standalone `SaveAsync` / `SaveAttemptAsync` methods are retained for existing repository-level use/tests, but the production extraction service no longer composes them non-atomically.
+- Added forced-failure integration coverage: a temporary PostgreSQL trigger raises during draft persistence after audit+attempt inserts; the transaction must roll back both earlier writes.
+- Added successful atomic persistence coverage and mismatch validation so audit metadata and attempt metadata cannot describe different extraction results.
+- No migration, provider policy, redaction policy, source parser, RFQ workflow, pricing, calculation engines, canonical calculation snapshot/hash/replay or frontend behavior changed.
+- B3 audit hardening tasks H1-H4 were copied into `AUTONOMOUS_BACKEND_PLAN.md`; H2 remains READY only after H1 is fully green/merged.
+
+## CI state
+- Implementation is published on `auto/b3-h1-atomic-extraction-persistence`.
+- Status: **CI_PENDING** until the exact PR head passes GitHub Actions.
 
 ## Exact next task
-Refactor the extraction persistence boundary to one atomic repository operation, add forced-failure/all-or-nothing tests, publish PR, and require green GitHub Actions.
+Inspect CI for the exact B3.H1 PR head. If failed, fix only the concrete failure. If green, record exact test counts, merge only the verified head and verify post-merge `main`. Do not start B3.H2/H3/H4, B4 or frontend in this run.
