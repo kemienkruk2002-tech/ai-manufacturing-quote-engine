@@ -171,9 +171,9 @@ public sealed class AiExecutionPolicyV1Tests
             new AiGatewayV1(provider),
             redactor,
             new(
-                new HashSet<string>(["rfq-extractor"], StringComparer.Ordinal),
-                new HashSet<string>(["model-a"], StringComparer.Ordinal),
-                new HashSet<string>(["test-document"], StringComparer.Ordinal),
+                new HashSet<string>(new[] { "rfq-extractor" }, StringComparer.Ordinal),
+                new HashSet<string>(new[] { "model-a" }, StringComparer.Ordinal),
+                new HashSet<string>(new[] { "test-document" }, StringComparer.Ordinal),
                 maxPayloadBytes));
 
     private static AiExternalExecutionRequest ExternalRequest(bool allowExternalAi = true) =>
