@@ -135,7 +135,7 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 - State-sync main commit `2378fad41a59079c295b7ad4aaea20ac233609cc`: run `37429665374` **GREEN**, **652/652 unit + 206/206 integration = 858/858 PASS**.
 - This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
-### B3.3 AI execution policy — CI_PENDING
+### B3.3 AI execution policy — DONE_PR_GREEN
 Branch: `auto/b3-3-ai-execution-policy`.
 
 Scope: add a default-deny external-AI policy boundary around the existing gateway. The policy will require an explicit per-execution `allow_external_ai` flag plus configured allowlists for use case/model/document type and an explicitly configured positive payload limit. It will expose a redaction seam and deterministic REVIEW/MANUAL outcomes for policy/redaction/provider failures. No allowlist entries, payload limit, redaction rules, endpoint, persistence or business workflow will be invented.
@@ -157,7 +157,8 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 
 ## CI state
 - B3.3 implementation is published on `auto/b3-3-ai-execution-policy`.
-- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+- Verified PR #19 implementation head `5b7f8145f55d0bb5f9ee052ff724191dbe959328` is **GREEN** in run `37432555854`: **664/664 unit + 210/210 integration = 874/874 PASS**.
+- Current head contains only plan/state status documentation after that verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Open/inspect the B3.3 PR CI. If it fails, fix only the concrete failure. If green, record the exact green head in plan/state, merge only that verified head, and verify post-merge `main` CI. Do not start B3.4 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #19 head. If green, merge PR #19 and verify post-merge `main` CI. On a later run, start exactly **B3.4 RFQ extraction service** from verified main. Production external AI remains default-deny until deployment supplies explicit allowlists, a positive payload limit and an approved `IAiInputRedactor`. Do not start B3.4 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
