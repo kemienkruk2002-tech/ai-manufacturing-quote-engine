@@ -4,7 +4,7 @@
 
 Projekt został przeniesiony do GitHuba i zweryfikowany w GitHub Actions na PostgreSQL 16. Aktualny pełny przebieg CI: **790/790 testów zielonych** (638 unit + 152 integration, 0 failed, 0 skipped). Zaimplementowane są deterministyczne TimeEngineV1, StockEngineV1 i CostEngineV1, immutable canonical snapshots/replay, RFQ draft + wersjonowane pliki, CanonicalRFQ v1, AI Gateway, prompt-v1, OpenAI Responses provider oraz B069 — bounded retry tylko dla błędów TRANSIENT.
 
-AI core jest obecnie biblioteką i **nie jest jeszcze podpięty do Host/API**. Finalny PricingEngine/margin policy pozostaje BLOCKED do czasu dostarczenia dokładnej polityki handlowej. Nie ma jeszcze kompletnego RFQ CRUD/customer workflow, auth/RLS, frontendu, STEP/geometry, QuoteVersion/approval/PDF/email ani actuals.
+AI core jest zarejestrowany w Host/DI, ale domyślnie pozostaje wyłączony i **nie ma jeszcze endpointu ekstrakcji RFQ**. Finalny PricingEngine/margin policy pozostaje BLOCKED do czasu dostarczenia dokładnej polityki handlowej. Nie ma jeszcze kompletnego RFQ CRUD/customer workflow, auth/RLS, frontendu, STEP/geometry, QuoteVersion/approval/PDF/email ani actuals.
 
 Pełny audyt i zalecana kolejność implementacji: [`docs/PROJECT_AUDIT_2026-10-05.md`](docs/PROJECT_AUDIT_2026-10-05.md).
 
@@ -30,6 +30,20 @@ dotnet run --project services/api/Host/QuoteEngine.Api.csproj -- --urls http://1
 Otwórz `http://127.0.0.1:5080/api/dev/golden/w07044`. Endpoint zwraca dane detalu, materiał, półfabrykat, 8 operacji, wymagania kontroli, wyniki czasu, materiału i kosztu oraz hashe. `calculatedCostResult` zachowuje pełną precyzję, a `calculatedCostDisplay` stosuje prezentacyjne zaokrąglenie do dwóch miejsc. `Dev__GoldenEnabled=false` wyłącza endpoint. W Production i Staging endpoint nie jest rejestrowany. Polecenia golden seed/calculate także wymagają Development.
 
 Portable PostgreSQL jest przechowywany poza repozytorium, w `%LOCALAPPDATA%\Codex\manufacturing-quote-test-postgres`, nasłuchuje wyłącznie na `127.0.0.1:55432`. Skrypt pobiera binarki EDB przy pierwszym uruchomieniu. Zatrzymanie: `.\scripts\stop-test-db.ps1 -Mode Portable`. Połączenie zwracane przez skrypt służy wyłącznie lokalnym testom i demo.
+
+## Konfiguracja AI
+
+AI jest domyślnie wyłączone. W stanie wyłączonym `AiGatewayV1` kończy wykonanie kodem providera `AI_DISABLED` i nie wykonuje requestu sieciowego.
+
+Aby włączyć provider OpenAI, konfiguracja serwerowa musi zawierać:
+
+```text
+Ai__Enabled=true
+Ai__ApiKey=<server-side secret>
+Ai__BaseUrl=https://api.openai.com/
+```
+
+`Ai__ApiKey` nie należy do repozytorium ani logów; należy dostarczyć go przez zmienną środowiskową lub system sekretów. `Ai__RetryDelaysMs` jest opcjonalną tablicą opóźnień w milisekundach. Brak wartości oznacza brak ponowień — repo nie narzuca niewymaganej polityki retry. Przy `Ai__Enabled=true` konfiguracja jest walidowana przy starcie: wymagany jest sekret, absolutny adres HTTPS i nieujemne opóźnienia retry.
 
 ## Docker / Linux / CI
 
@@ -79,7 +93,7 @@ Silniki używają `decimal`, bez zaokrągleń do dwóch miejsc. Wartości godzin
 - `docs/sources` — tekst odczytanych źródeł 02, 11, 11A wraz z adresem i datą wersji.
 - `docs/adr/001-stage1.md` — decyzje techniczne, format snapshotu i ograniczenia.
 
-Etap udostępnia debug przez API/command oraz produkcyjne endpointy upload/download wersjonowanych plików RFQ. AI Extractor core (CanonicalRFQ, schema, prompt, provider, gateway i retry) jest zaimplementowany i przetestowany, ale nie jest jeszcze zarejestrowany w Host/DI ani wystawiony jako endpoint. PricingEngine, parser STEP, frontend i email ingestion nie są jeszcze częścią działającego przepływu aplikacji.
+Etap udostępnia debug przez API/command oraz produkcyjne endpointy upload/download wersjonowanych plików RFQ. AI Extractor core (CanonicalRFQ, schema, prompt, provider, gateway i retry) jest zaimplementowany, przetestowany i zarejestrowany w Host/DI, ale nie jest jeszcze wystawiony jako endpoint. PricingEngine, parser STEP, frontend i email ingestion nie są jeszcze częścią działającego przepływu aplikacji.
 
 ## Migracje i seed
 
