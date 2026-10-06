@@ -32,9 +32,10 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
             INSERT INTO audit_events(
                 tenant_id,entity_type,entity_id,action,new_value,source
             )
-            VALUES(
-                @tenant,'quote_requests',@rfq,@action,CAST(@payload AS jsonb),@source
-            )
+            SELECT
+                q.tenant_id,'quote_requests',q.id,@action,CAST(@payload AS jsonb),@source
+            FROM quote_requests q
+            WHERE q.tenant_id=@tenant AND q.id=@rfq
             RETURNING id,created_at
             """);
         command.Parameters.AddWithValue("tenant", write.TenantId);
@@ -45,7 +46,8 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
-            throw new InvalidOperationException("RFQ extraction audit insert did not return a row.");
+            throw new DomainValidationException("RFQ_EXTRACTION_AUDIT_RFQ_NOT_FOUND",
+                "The RFQ does not exist in the requested tenant.");
 
         return new(
             reader.GetGuid(0),
