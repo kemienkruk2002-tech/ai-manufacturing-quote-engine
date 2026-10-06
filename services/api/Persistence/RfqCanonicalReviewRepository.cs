@@ -2,6 +2,7 @@ using System.Text.Json;
 using Npgsql;
 using QuoteEngine.Application;
 using QuoteEngine.Application.Ai;
+using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
 
 namespace QuoteEngine.Persistence;
