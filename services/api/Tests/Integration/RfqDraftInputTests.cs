@@ -11,9 +11,9 @@ namespace QuoteEngine.IntegrationTests;
 public sealed class RfqDraftInputTests(PostgresFixture db)
 {
     [Fact]
-    public async Task Migrations_one_through_eight_apply_from_scratch()
+    public async Task Migrations_one_through_nine_apply_from_scratch()
     {
-        Assert.Equal(8L, await db.ScalarAsync<long>("SELECT count(*) FROM schema_migrations"));
+        Assert.Equal(9L, await db.ScalarAsync<long>("SELECT count(*) FROM schema_migrations"));
     }
 
     [Theory]
