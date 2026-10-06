@@ -2,6 +2,7 @@ using System.Text.Json;
 using QuoteEngine.Application;
 using QuoteEngine.Application.Ai;
 using QuoteEngine.Domain.Calculation;
+using QuoteEngine.Domain.Quoting;
 using QuoteEngine.Persistence;
 
 namespace QuoteEngine.IntegrationTests;
@@ -10,6 +11,137 @@ namespace QuoteEngine.IntegrationTests;
 public sealed class RfqExtractionExecutionRepositoryTests(PostgresFixture db)
 {
     private RfqExtractionExecutionRepository Repository => new(db.DataSource);
+
+    [Fact]
+    public async Task Atomic_save_commits_one_audit_one_attempt_and_validated_current_draft()
+    {
+        var rfqId = await CreateRfqAsync();
+        var fingerprint = new string('d', 64);
+        var canonical = ValidCanonicalJson();
+
+        var result = await Repository.SaveAtomicAsync(
+            new(
+                PostgresFixture.TenantId,
+                rfqId,
+                "model-test",
+                RfqExtractorPromptV1.PromptVersion,
+                RfqExtractorPromptV1.SchemaVersion,
+                fingerprint,
+                AiExecutionDisposition.COMPLETED,
+                null),
+            new(
+                PostgresFixture.TenantId,
+                rfqId,
+                "model-test",
+                RfqExtractorPromptV1.PromptVersion,
+                RfqExtractorPromptV1.SchemaVersion,
+                fingerprint,
+                AiExecutionDisposition.COMPLETED,
+                null,
+                "[]",
+                canonical,
+                canonical));
+
+        Assert.Equal(1L, await CountExtractionAuditsAsync(rfqId));
+        Assert.Equal(1L, await CountAttemptsAsync(rfqId));
+        Assert.NotNull(result.Persistence.CurrentDraft);
+        Assert.Equal(result.Persistence.Attempt.Id, result.Persistence.CurrentDraft!.SourceAttemptId);
+    }
+
+    [Fact]
+    public async Task Atomic_save_rolls_back_audit_and_attempt_when_draft_write_fails()
+    {
+        var rfqId = await CreateRfqAsync();
+        var canonical = ValidCanonicalJson();
+
+        await using (var command = db.DataSource.CreateCommand("""
+            CREATE FUNCTION fail_b3_h1_draft_write() RETURNS trigger LANGUAGE plpgsql AS $
+            BEGIN
+                RAISE EXCEPTION 'B3_H1_FORCED_DRAFT_FAILURE' USING ERRCODE = 'P0001';
+            END;
+            $;
+            CREATE TRIGGER fail_b3_h1_draft_write
+            BEFORE INSERT OR UPDATE ON rfq_canonical_drafts
+            FOR EACH ROW EXECUTE FUNCTION fail_b3_h1_draft_write();
+            """))
+        {
+            await command.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            var error = await Assert.ThrowsAsync<PostgresException>(() =>
+                Repository.SaveAtomicAsync(
+                    new(
+                        PostgresFixture.TenantId,
+                        rfqId,
+                        "model-test",
+                        RfqExtractorPromptV1.PromptVersion,
+                        RfqExtractorPromptV1.SchemaVersion,
+                        new string('e', 64),
+                        AiExecutionDisposition.COMPLETED,
+                        null),
+                    new(
+                        PostgresFixture.TenantId,
+                        rfqId,
+                        "model-test",
+                        RfqExtractorPromptV1.PromptVersion,
+                        RfqExtractorPromptV1.SchemaVersion,
+                        new string('e', 64),
+                        AiExecutionDisposition.COMPLETED,
+                        null,
+                        "[]",
+                        canonical,
+                        canonical)));
+
+            Assert.Equal("P0001", error.SqlState);
+            Assert.Equal(0L, await CountExtractionAuditsAsync(rfqId));
+            Assert.Equal(0L, await CountAttemptsAsync(rfqId));
+        }
+        finally
+        {
+            await using var cleanup = db.DataSource.CreateCommand("""
+                DROP TRIGGER IF EXISTS fail_b3_h1_draft_write ON rfq_canonical_drafts;
+                DROP FUNCTION IF EXISTS fail_b3_h1_draft_write();
+                """);
+            await cleanup.ExecuteNonQueryAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Atomic_save_rejects_mismatched_execution_and_attempt_before_writing()
+    {
+        var rfqId = await CreateRfqAsync();
+
+        var error = await Assert.ThrowsAsync<DomainValidationException>(() =>
+            Repository.SaveAtomicAsync(
+                new(
+                    PostgresFixture.TenantId,
+                    rfqId,
+                    "model-a",
+                    RfqExtractorPromptV1.PromptVersion,
+                    RfqExtractorPromptV1.SchemaVersion,
+                    new string('f', 64),
+                    AiExecutionDisposition.REVIEW_MANUAL,
+                    "TEST"),
+                new(
+                    PostgresFixture.TenantId,
+                    rfqId,
+                    "model-b",
+                    RfqExtractorPromptV1.PromptVersion,
+                    RfqExtractorPromptV1.SchemaVersion,
+                    new string('f', 64),
+                    AiExecutionDisposition.REVIEW_MANUAL,
+                    "TEST",
+                    "[]",
+                    null,
+                    null)));
+
+        Assert.Contains(error.Errors,
+            issue => issue.Code == "RFQ_EXTRACTION_ATOMIC_WRITE_MISMATCH");
+        Assert.Equal(0L, await CountExtractionAuditsAsync(rfqId));
+        Assert.Equal(0L, await CountAttemptsAsync(rfqId));
+    }
 
     [Fact]
     public async Task Save_appends_required_execution_metadata_to_immutable_audit()
@@ -115,4 +247,52 @@ public sealed class RfqExtractionExecutionRepositoryTests(PostgresFixture db)
             WHERE id='{stored.AuditEventId}'
             """, "23514");
     }
+    private async Task<Guid> CreateRfqAsync()
+    {
+        var id = Guid.NewGuid();
+        await using var command = db.DataSource.CreateCommand("""
+            INSERT INTO quote_requests(id,tenant_id,status,currency)
+            VALUES(@id,@tenant,'New','PLN')
+            """);
+        command.Parameters.AddWithValue("id", id);
+        command.Parameters.AddWithValue("tenant", PostgresFixture.TenantId);
+        await command.ExecuteNonQueryAsync();
+        return id;
+    }
+
+    private async Task<long> CountExtractionAuditsAsync(Guid rfqId) =>
+        await db.ScalarAsync<long>($"""
+            SELECT count(*)
+            FROM audit_events
+            WHERE tenant_id='{PostgresFixture.TenantId}'
+              AND entity_id='{rfqId}'
+              AND action='{RfqExtractionExecutionRepository.Action}'
+            """);
+
+    private async Task<long> CountAttemptsAsync(Guid rfqId) =>
+        await db.ScalarAsync<long>($"""
+            SELECT count(*)
+            FROM rfq_extraction_attempts
+            WHERE tenant_id='{PostgresFixture.TenantId}'
+              AND quote_request_id='{rfqId}'
+            """);
+
+    private static string ValidCanonicalJson() =>
+        JsonSerializer.Serialize(new CanonicalRfqV1(
+            Missing<string>(),
+            Missing<string>(),
+            [],
+            [],
+            [],
+            Missing<DateOnly?>(),
+            Missing<DateOnly?>(),
+            [],
+            [],
+            [],
+            [],
+            []));
+
+    private static CanonicalRfqFact<T> Missing<T>() =>
+        new([], default, [], null, RfqFactClassification.MISSING, false, []);
+
 }
