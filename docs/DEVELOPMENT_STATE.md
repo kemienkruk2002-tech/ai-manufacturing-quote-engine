@@ -99,7 +99,10 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 - Initial PR head `afd8e33072dbd0bf9f8a9b92c1a4884d5d4da966` failed run `37427440602` at compile time only: CS0123 on method-group projection to `TimeSpan.FromMilliseconds`.
 - Fixed only that concrete build error with an explicit `delay => TimeSpan.FromMilliseconds(delay)` projection.
 - Verified implementation head `1aac38c1af6d9ed82670a9fd20ee0271b8a38030` passed run `37427572933`: **641/641 unit + 206/206 integration = 847/847 PASS**.
-- Current head contains status documentation after that verified implementation and must also pass GitHub Actions before merge.
+- Final PR head `329b8f290b026381f96d838e58366abbe92e96dd` passed run `37427756955`: **847/847 PASS**.
+- PR #17 merged as `666d9d0d5d9b532a194df8ab074496f1a044e81e`.
+- Post-merge main run `37428227503` passed **641/641 unit + 206/206 integration = 847/847 PASS**.
+- State-sync main commit `727c5e46edea669ac13edbb17f4fd2ddd165f252` passed run `37428385748`; this final documentation-only update requires its own CI verification on the next run.
 
 ## Exact next task
 On the next autonomous run, first verify CI for the final state-only main commit. If green, start exactly **B3.2 deterministic AI input normalization** from verified main: canonicalize the supported normalized JSON before fingerprinting and prove semantically identical supported inputs produce identical fingerprints, without broadening CanonicalRFQ v1. Do not start B3.3 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
