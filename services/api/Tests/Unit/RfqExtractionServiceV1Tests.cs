@@ -261,6 +261,7 @@ public sealed class RfqExtractionServiceV1Tests
     private sealed class FakeExecutions : IRfqExtractionExecutionRepository
     {
         public List<RfqExtractionExecutionWrite> Writes { get; } = [];
+        public List<RfqExtractionAttemptWrite> AttemptWrites { get; } = [];
 
         public Task<StoredRfqExtractionExecution> SaveAsync(
             RfqExtractionExecutionWrite write,
@@ -279,6 +280,43 @@ public sealed class RfqExtractionServiceV1Tests
                 write.Code,
                 DateTimeOffset.Parse("2026-10-06T08:00:00Z")));
         }
+
+        public Task<RfqExtractionPersistenceResult> SaveAttemptAsync(
+            RfqExtractionAttemptWrite write,
+            CancellationToken cancellationToken = default)
+        {
+            AttemptWrites.Add(write);
+            var now = DateTimeOffset.Parse("2026-10-06T08:00:00Z");
+            var attemptId = Guid.NewGuid();
+            var attempt = new StoredRfqExtractionAttempt(
+                attemptId,
+                write.TenantId,
+                write.QuoteRequestId,
+                write.ModelId,
+                write.PromptVersion,
+                write.SchemaVersion,
+                write.RequestFingerprint,
+                write.Disposition,
+                write.Code,
+                write.SourceLineageJson,
+                write.RawProviderOutput,
+                now);
+            StoredRfqCanonicalDraft? draft = write.CanonicalDraftJson is null ? null
+                : new(write.TenantId, write.QuoteRequestId, attemptId, write.CanonicalDraftJson, 1, now, now);
+            return Task.FromResult(new RfqExtractionPersistenceResult(attempt, draft));
+        }
+
+        public Task<IReadOnlyList<StoredRfqExtractionAttempt>> ListAttemptsAsync(
+            Guid tenantId,
+            Guid quoteRequestId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<StoredRfqExtractionAttempt>>([]);
+
+        public Task<StoredRfqCanonicalDraft?> FindCurrentDraftAsync(
+            Guid tenantId,
+            Guid quoteRequestId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<StoredRfqCanonicalDraft?>(null);
     }
 
     private sealed class FakeFiles(params RfqFileVersion[] versions) : IRfqFileRepository
