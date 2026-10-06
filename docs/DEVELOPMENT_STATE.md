@@ -14,10 +14,10 @@ Mode: autonomous backend-first development
 ### B2.3 RFQ deterministic state machine — BLOCKED_BUSINESS_POLICY
 Repository defines status vocabulary and the progressed-input invariant, but no allowed transition graph or READY_FOR_ANALYSIS/readiness policy. Blocker is recorded on `auto/b2-3-rfq-state-machine` at `24b48575d8a72296540e4698f3442c65aad4edd0`. Do not invent workflow policy.
 
-### B2.4a Draft optimistic concurrency — IN_PROGRESS
+### B2.4a Draft optimistic concurrency — CI_PENDING
 Branch: `auto/b2-4-draft-concurrency`
 
-Scope is intentionally smaller than full B2.4: add optimistic concurrency protection for editable draft RFQ fields only. Do not implement post-analysis revision semantics while B2.3 analysis/readiness policy is undefined.
+Implemented scope: optimistic concurrency protection for editable `New` RFQ draft fields only. Post-analysis revision semantics remain deferred while B2.3 policy is undefined.
 
 ## Known blockers
 - B2.3: RFQ transition/readiness business policy missing.
@@ -32,12 +32,18 @@ Scope is intentionally smaller than full B2.4: add optimistic concurrency protec
 - B2.2 RFQ create/read/list: DONE, PR #11, merge `a3e78077b25f1396f2931b8d3707a071dc075065`, post-merge 820/820 PASS.
 
 ## Current run findings
-- Read current `main` plan, development state and project audit before selecting work.
-- B2.3 remains genuinely blocked: repository code/SQL defines nine statuses and only the non-null part/quantity invariant for progressed states; no transition graph or READY_FOR_ANALYSIS requirements are defined.
-- The autonomous plan explicitly says to continue with the next independent backend task when a task is business-blocked.
-- Full B2.4 contains two concerns. Draft optimistic concurrency is independent of the missing B2.3 workflow policy; post-analysis revision/snapshot semantics are not and remain deferred.
-- Selected the smallest independent slice: **B2.4a draft optimistic concurrency**.
-- No frontend, pricing, approval, geometry, production or security policy is introduced by this slice.
+- Continued the already-selected B2.4a slice after confirming no open prior PR existed.
+- Added forward-only migration `009_rfq_draft_concurrency.sql` with positive `row_version BIGINT NOT NULL DEFAULT 1`.
+- `QuoteRequest` now exposes the persisted row version; create/read/list return the token.
+- Added tenant-scoped compare-and-swap `UpdateDraftAsync`: update succeeds only for `status='New'` and matching expected row version, atomically increments the version, and never changes status.
+- Added `PUT /api/tenants/{tenantId}/rfqs/{quoteRequestId}/draft`; missing RFQ returns 404, non-New draft returns `409 RFQ_NOT_EDITABLE_DRAFT`, and a stale/racing token returns `409 RFQ_DRAFT_VERSION_CONFLICT`.
+- Added focused repository tests proving two simultaneous writers using the same token yield exactly one winner and one stale rejection, plus stale/non-draft rejection coverage.
+- During review caught and removed an invalid `updated_at` write because the existing `quote_requests` schema has no such column; existing migration history was not modified.
+- No status-transition graph, post-analysis mutation semantics, pricing, approval, geometry, deterministic engine, snapshot/hash/replay or immutable-history behavior was invented or changed.
+
+## CI state
+- Implementation is published on `auto/b2-4-draft-concurrency`.
+- PR creation/CI verification is the next required gate. Do not mark DONE or merge before GitHub Actions is green for the exact PR head.
 
 ## Exact next task
-Implement B2.4a on this branch: inspect current migration runner/tests and RFQ API contracts, add a new forward-only migration for a concurrency token/version, expose draft update with compare-and-swap semantics scoped to tenant, reject stale updates deterministically, and add focused persistence/API simultaneous-update tests. Publish a PR and require green GitHub Actions before marking DONE.
+Inspect the B2.4a PR CI first. If CI fails, fix only the concrete failure. If CI is green, record the verified counts/head and merge only that green head, then verify post-merge main CI. Do not start another backend task before this gate completes.
