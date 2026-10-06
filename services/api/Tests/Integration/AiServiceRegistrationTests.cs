@@ -209,20 +209,23 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
     }
 
     [Fact]
-    public void Negative_policy_payload_limit_fails_startup_validation()
+    public void Negative_policy_payload_limit_fails_options_validation()
     {
-        using var factory = Factory(new Dictionary<string, string?>
-        {
-            ["Ai:Policy:MaxPayloadBytes"] = "-1"
-        });
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Ai:Policy:MaxPayloadBytes"] = "-1"
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddQuoteEngineAi(configuration);
+        using var provider = services.BuildServiceProvider();
 
-        var error = Assert.ThrowsAny<Exception>(() =>
-        {
-            using var _ = factory.CreateClient();
-        });
+        var error = Assert.Throws<OptionsValidationException>(() =>
+            _ = provider.GetRequiredService<IOptions<AiExecutionPolicyOptions>>().Value);
 
         Assert.Contains("Ai:Policy:MaxPayloadBytes must be greater than or equal to zero.",
-            error.ToString(), StringComparison.Ordinal);
+            error.Failures);
     }
 
     [Fact]
