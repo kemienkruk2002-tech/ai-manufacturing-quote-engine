@@ -201,7 +201,7 @@ Branch: `auto/b3-4-rfq-extraction-service`.
 - Merge `eda1601deddd9e640a756d1e8637733687c501f6`: post-merge `main` run `37435364172` **GREEN**, **671/671 unit + 215/215 integration = 886/886 PASS**.
 - This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
 
-### B3.5 Persist CanonicalRFQ draft — CI_PENDING
+### B3.5 Persist CanonicalRFQ draft — DONE_PR_GREEN
 Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 
 ## Current run findings
@@ -222,8 +222,8 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 - No B3.6 review/correction API, RFQ workflow transition, pricing, calculation engine, canonical calculation snapshot/hash/replay, geometry or frontend behavior changed.
 
 ## CI state
-- PR #21 remains open and **must not be merged or marked DONE until the exact repaired head is green**.
-- Status: **CI_PENDING**.
+- Repaired PR #21 head `afd561f146df0e81124c38832860d8a54eb6116e` is **GREEN** in run `37441176622`: **674/674 unit + 222/222 integration = 896/896 PASS**.
+- Current head contains only plan/state documentation after that verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Inspect GitHub Actions for the exact current PR #21 head. If CI fails, fix only the concrete failure. If green, perform a focused B3.5 persistence review, record exact test counts in plan/state, merge only the verified head, and verify post-merge `main` CI. Do not start B3.6 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #21 head. If green, merge PR #21 and verify post-merge `main` CI. On a later run, start exactly **B3.6 Review/confirmation backend** from verified main. Do not start B3.6 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
