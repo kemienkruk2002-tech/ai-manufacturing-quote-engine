@@ -7,6 +7,9 @@ namespace QuoteEngine.Persistence;
 
 public sealed class LocalFileObjectStore : IFileObjectStore
 {
+    private static readonly SemaphoreSlim[] PublicationGates =
+        Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)).ToArray();
+
     private readonly string rootPath;
 
     public LocalFileObjectStore(string rootPath)
@@ -53,19 +56,27 @@ public sealed class LocalFileObjectStore : IFileObjectStore
                     ArrayPool<byte>.Shared.Return(buffer);
                 }
             }
+
             actualSha256 = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
             if (!StringComparer.Ordinal.Equals(actualSha256, expectedSha256))
                 throw new FileObjectHashMismatchException(expectedSha256, actualSha256);
 
-            if (File.Exists(finalPath)) return new(expectedSha256, byteSize, false);
+            // Keep publication atomic: only a fully written, hash-verified temporary file is renamed
+            // to the content-addressed path. The striped in-process gate provides deterministic
+            // winner election across LocalFileObjectStore instances without exposing partial bytes.
+            var publicationGate = PublicationGates[Convert.ToInt32(expectedSha256[..2], 16) % PublicationGates.Length];
+            await publicationGate.WaitAsync(cancellationToken);
             try
             {
+                if (File.Exists(finalPath))
+                    return new(expectedSha256, byteSize, false);
+
                 File.Move(temporaryPath, finalPath, false);
                 return new(expectedSha256, byteSize, true);
             }
-            catch (IOException) when (File.Exists(finalPath))
+            finally
             {
-                return new(expectedSha256, byteSize, false);
+                publicationGate.Release();
             }
         }
         finally
