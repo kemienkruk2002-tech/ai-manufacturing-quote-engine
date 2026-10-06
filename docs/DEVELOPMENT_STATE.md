@@ -168,5 +168,28 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 - State-sync main commit `3ed6c042d779c0635e4d94ef518ccb3d39b7dff7` passed run `37433105161`: **664/664 unit + 210/210 integration = 874/874 PASS**.
 - This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
+## Current run findings
+- Verified final B3.3 documentation commit `7492fe5bd513ae19a088cd394fe8623cb3db0cc9` first; run `37433357030` completed successfully with **874/874 PASS**.
+- Confirmed there were no open PRs before starting B3.4.
+- Reviewed the RFQ file/version repositories, manifest, immutable file-history migration, audit schema, Host composition root and B3.1-B3.3 AI boundaries before implementation.
+- Repository has no PDF/STEP/e-mail parser. B3.4 therefore introduces `IRfqExtractionSourceMaterializer` rather than inventing binary-to-text behavior; Host default materializer fails closed with `RFQ_EXTRACTION_SOURCE_MATERIALIZER_NOT_CONFIGURED`.
+- Added `RfqExtractionServiceV1`. Callers must explicitly select each `logical_key + version_no + document_type`; the service never auto-selects latest versions.
+- Selected sources are resolved tenant/RFQ-scoped through `IRfqFileRepository.FindVersionAsync`. Missing exact versions produce `REVIEW_MANUAL`; there is no fallback to another version.
+- Selected sources are sorted deterministically before canonical input construction, so the same selected set yields the same request fingerprint regardless of caller order.
+- The normalized input carries deterministic source key, existing source reference, logical key, exact version, document type, file SHA-256 and materialized content.
+- The service executes only through `AiPolicyExecutorV1`. It never calls the provider directly.
+- Persisted request fingerprint uses the gateway/provider-visible fingerprint when the gateway executes (therefore reflecting redaction); otherwise it uses the deterministic pre-policy request fingerprint when such a request exists.
+- Added `IRfqExtractionExecutionRepository` / `RfqExtractionExecutionRepository`. B3.4 persists only execution metadata (model/prompt/schema/fingerprint/disposition/code) as append-only `audit_events`; it does not create B3.5 extraction-attempt/history tables or persist CanonicalRFQ drafts.
+- Audit insertion uses `INSERT ... SELECT` from the exact `quote_requests(tenant_id,id)` pair, so an extraction event cannot be attached to an RFQ outside the tenant.
+- Added unit coverage for exact-version selection, deterministic selection ordering/fingerprint, no implicit fallback, materialization failure, policy block persistence and provider-visible redacted fingerprint.
+- Added PostgreSQL integration coverage for durable metadata, nullable pre-request fingerprint, tenant/RFQ-scoped audit insertion and audit immutability.
+- Added Host integration coverage proving the extraction service resolves through DI and the default source materializer fails closed before external AI.
+- No migration was added; existing migration history remains unchanged. No endpoint, B3.5 draft/history persistence, CanonicalRFQ v1 contract, final cost/time/price fields, calculation engines, snapshot/hash/replay, RFQ workflow or approval policy changed.
+
+## CI state
+- B3.4 implementation is published on `auto/b3-4-rfq-extraction-service`.
+- Verified PR #20 implementation head `cf8b2f9ffe85a17be7c7d8914c41dc71cea7c5a7` is **GREEN** in run `37435066563`: **671/671 unit + 215/215 integration = 886/886 PASS**.
+- Current head contains only plan/state documentation after that verified implementation and must also pass GitHub Actions before merge.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.4 RFQ extraction service** from verified main: build normalized extraction input only from explicitly selected RFQ sources, execute through `AiPolicyExecutorV1`, and persist request fingerprint plus prompt/schema/model versions and result status without writing final cost/time/price fields. Production external AI remains default-deny until deployment supplies explicit allowlists, a positive payload limit and an approved `IAiInputRedactor`. Do not start B3.5 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #20 head. If green, merge PR #20 and verify post-merge `main` CI. On a later run, start exactly **B3.5 Persist CanonicalRFQ draft** from verified main. Do not start B3.5 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.

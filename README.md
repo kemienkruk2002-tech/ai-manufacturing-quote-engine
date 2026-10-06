@@ -62,6 +62,20 @@ Domyślna implementacja `IAiInputRedactor` blokuje wykonanie kodem `AI_REDACTION
 
 Każde odrzucenie polityki, redakcji lub providera kończy się `REVIEW_MANUAL`; nie ma automatycznego fallbacku tworzącego dane zastępcze.
 
+### RFQ extraction service
+
+B3.4 dodaje `RfqExtractionServiceV1` bez endpointu HTTP. Serwis przyjmuje wyłącznie jawnie wskazane pary `logical_key + version_no` oraz jawny `document_type`; nie wybiera automatycznie najnowszej wersji pliku.
+
+Repozytorium **nie implementuje jeszcze parsera PDF/STEP/e-mail**. `IRfqExtractionSourceMaterializer` jest seamem dla takiego parsera, a domyślna implementacja hosta kończy próbę kodem `RFQ_EXTRACTION_SOURCE_MATERIALIZER_NOT_CONFIGURED`. Dzięki temu binarne pliki nie są arbitralnie konwertowane ani wysyłane do providera.
+
+Po zmaterializowaniu jawnych źródeł serwis:
+- buduje deterministyczny canonical JSON wejścia;
+- wylicza request fingerprint;
+- wykonuje wyłącznie przez `AiPolicyExecutorV1`;
+- zapisuje model/prompt/schema/fingerprint/disposition/code jako append-only `audit_events`.
+
+Dedykowane immutable tabele prób oraz trwały CanonicalRFQ draft należą do B3.5 i nie są tworzone w B3.4.
+
 ## Docker / Linux / CI
 
 ```sh

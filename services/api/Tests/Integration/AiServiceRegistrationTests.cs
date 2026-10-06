@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using QuoteEngine.Api;
+using QuoteEngine.Application;
+using QuoteEngine.Domain.Quoting;
 using QuoteEngine.Application.Ai;
 
 namespace QuoteEngine.IntegrationTests;
@@ -72,6 +74,39 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
         Assert.Equal(AiExecutionDisposition.REVIEW_MANUAL, result.Disposition);
         Assert.Equal(AiPolicyExecutorV1.RedactionNotConfiguredCode, result.Code);
         Assert.Null(result.GatewayResult);
+    }
+
+    [Fact]
+    public async Task Rfq_extraction_service_is_registered_and_default_materializer_fails_closed()
+    {
+        using var factory = Factory();
+        using var client = factory.CreateClient();
+        using var scope = factory.Services.CreateScope();
+
+        var files = scope.ServiceProvider.GetRequiredService<IRfqFileRepository>();
+        var logicalKey = "b34-" + Guid.NewGuid().ToString("N");
+        await files.GetOrCreateVersionAsync(new(
+            PostgresFixture.TenantId,
+            PostgresFixture.RequestId,
+            logicalKey,
+            "rfq.txt",
+            "text/plain",
+            3,
+            new string('a', 64),
+            "test:b3.4"));
+
+        var service = scope.ServiceProvider.GetRequiredService<RfqExtractionServiceV1>();
+        var result = await service.ExecuteAsync(new(
+            PostgresFixture.TenantId,
+            PostgresFixture.RequestId,
+            "model-test",
+            true,
+            [new(logicalKey, 1, "test-document")]));
+
+        Assert.Equal(AiExecutionDisposition.REVIEW_MANUAL, result.Disposition);
+        Assert.Equal(RfqExtractionServiceV1.SourceMaterializerNotConfiguredCode, result.Code);
+        Assert.Null(result.RequestFingerprint);
+        Assert.NotNull(result.StoredExecution);
     }
 
     [Fact]

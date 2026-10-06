@@ -91,6 +91,7 @@ public static class AiServiceRegistration
                 : new DisabledAiStructuredProvider());
         services.AddTransient<AiGatewayV1>();
         services.AddSingleton<IAiInputRedactor, BlockingAiInputRedactor>();
+        services.AddSingleton<IRfqExtractionSourceMaterializer, BlockingRfqExtractionSourceMaterializer>();
         services.AddTransient<AiExecutionPolicyV1>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<AiExecutionPolicyOptions>>().Value;
@@ -101,6 +102,7 @@ public static class AiServiceRegistration
                 options.MaxPayloadBytes);
         });
         services.AddTransient<AiPolicyExecutorV1>();
+        services.AddScoped<RfqExtractionServiceV1>();
         return services;
     }
 
@@ -110,6 +112,17 @@ public static class AiServiceRegistration
 
     private static bool ValidEntries(IEnumerable<string> values) =>
         values.All(value => !string.IsNullOrWhiteSpace(value));
+
+    private sealed class BlockingRfqExtractionSourceMaterializer
+        : IRfqExtractionSourceMaterializer
+    {
+        public Task<RfqExtractionSourceMaterializationResult> MaterializeAsync(
+            QuoteEngine.Domain.Quoting.RfqFileVersion source,
+            string documentType,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(RfqExtractionSourceMaterializationResult.Failure(
+                RfqExtractionServiceV1.SourceMaterializerNotConfiguredCode));
+    }
 
     private sealed class BlockingAiInputRedactor : IAiInputRedactor
     {
