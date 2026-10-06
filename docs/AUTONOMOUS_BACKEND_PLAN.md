@@ -182,13 +182,13 @@ Implemented in PR #18. Final PR head `3aeafbd0e6b7de06d0adc280fb62ddfb4f61f53b` 
 
 Implemented in PR #19. Final PR head `280e39be406b891855df583ac7c12f84d1a5cf8c` passed run `37432765264`; merge `b6ad030f5c4dc2f909bf809c14d870a4180b3627`; post-merge main run `37432937882` passed **664 unit + 210 integration = 874/874 PASS**. The boundary is default-deny: no production allowlist entries, payload limit or redaction rules are guessed. The default Host redactor blocks with `AI_REDACTION_NOT_CONFIGURED` until an approved deployment implementation replaces it. Architectural rationale: `docs/adr/002-external-ai-execution-policy.md`.
 
-### B3.4 RFQ extraction service — DONE_PR_GREEN
+### B3.4 RFQ extraction service — DONE
 - create normalized extraction input from explicitly selected RFQ sources;
 - execute gateway;
 - persist request fingerprint, prompt/schema/model versions and result status;
 - no direct writes to final cost/time/price fields.
 
-Implemented in PR #20. Verified implementation head `cf8b2f9ffe85a17be7c7d8914c41dc71cea7c5a7` passed run `37435066563`: **671 unit + 215 integration = 886/886 PASS**. Source selection is exact-version only; no implicit latest fallback. Source parsing is a fail-closed seam (`IRfqExtractionSourceMaterializer`) because no PDF/STEP/e-mail parser is yet defined. Execution metadata is persisted append-only in existing `audit_events`; dedicated extraction history/draft persistence remains B3.5.
+Implemented in PR #20. Final PR head `0f8e9752864ccc0244c055518e460bf727a46457` passed run `37435238467`; merge `eda1601deddd9e640a756d1e8637733687c501f6`; post-merge main run `37435364172` passed **671 unit + 215 integration = 886/886 PASS**. Source selection is exact-version only; no implicit latest fallback. Source parsing is a fail-closed seam (`IRfqExtractionSourceMaterializer`) because no PDF/STEP/e-mail parser is yet defined. Execution metadata is persisted append-only in existing `audit_events`; dedicated extraction history/draft persistence remains B3.5.
 
 ### B3.5 Persist CanonicalRFQ draft
 - new immutable extraction attempt/history tables;
