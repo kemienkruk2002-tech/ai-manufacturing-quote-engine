@@ -6,7 +6,7 @@ CREATE TABLE rfq_extraction_attempts (
     model_id TEXT NOT NULL CHECK (length(btrim(model_id)) > 0),
     prompt_version TEXT NOT NULL CHECK (length(btrim(prompt_version)) > 0),
     schema_version TEXT NOT NULL CHECK (length(btrim(schema_version)) > 0),
-    disposition TEXT NOT NULL CHECK (disposition IN ('ACCEPTED','REVIEW_MANUAL')),
+    disposition TEXT NOT NULL CHECK (disposition IN ('COMPLETED','REVIEW_MANUAL')),
     result_code TEXT CHECK (result_code IS NULL OR length(btrim(result_code)) > 0),
     source_lineage JSONB NOT NULL CHECK (jsonb_typeof(source_lineage) = 'array'),
     raw_provider_output TEXT,
