@@ -143,16 +143,16 @@ Goal: create a complete backend RFQ lifecycle independent of AI.
 - source references;
 - file metadata attached to RFQ workspace model.
 
-### B2.H1 Local object-store atomic publication — CI_PENDING
+### B2.H1 Local object-store atomic publication — DONE_PR_GREEN
 Audit PR #14 exposed a real concurrent same-hash publication race in the local object store. Preserve temp-file hash verification and atomic publication; exactly one in-process writer reports creation. Production multi-process/object-storage semantics remain B4.4.
 
 ### B2.H2 Draft-only RFQ creation guard — READY
 B2.2 specifies creation of a draft RFQ, but the current create DTO accepts arbitrary existing statuses. Constrain create to `New` so callers cannot instantiate progressed states outside the future audited transition boundary. Do not define any later transition.
 
-### B2 audit — CI_PENDING
+### B2 audit — DONE_PR_GREEN
 Audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
 
-DB/API/replay/tenant-isolation evidence is recorded. B2.3 and B2.4b remain explicit business blockers. After B2.H1 and B2.H2 are green, later runs may continue with the next independent backend milestone task.
+PR #14 implementation/audit head `ec2f3a656b48a12f7b007b99c36f282a9770c4bd` passed run `37424052221`: 641 unit + 183 integration = 824/824. B2.3 and B2.4b remain explicit business blockers. B2.H2 is the next unblocked hardening task after PR #14 is merged and post-merge main CI is green.
 
 ## Milestone B3 — AI RFQ extraction wired end-to-end
 
