@@ -151,6 +151,55 @@ public sealed class RfqExtractionServiceV1Tests
     }
 
     [Fact]
+    public async Task Completed_extraction_persists_raw_provider_output_canonical_draft_and_source_lineage()
+    {
+        var raw = ValidJson();
+        var executions = new FakeExecutions();
+        var service = Service(
+            new FakeFiles(Version("drawing", 1, "a1")),
+            new FakeMaterializer(_ => RfqExtractionSourceMaterializationResult.Success("rfq text")),
+            new CapturingProvider(AiProviderResult.Success(raw)),
+            executions);
+
+        var result = await service.ExecuteAsync(new(
+            TenantId, RfqId, "model-a", true,
+            [new("drawing", 1, "doc-type")]));
+
+        Assert.Equal(AiExecutionDisposition.COMPLETED, result.Disposition);
+        var attempt = Assert.Single(executions.AttemptWrites);
+        Assert.Equal(raw, attempt.RawProviderOutput);
+        Assert.Equal(raw, attempt.CanonicalDraftJson);
+        using var lineage = JsonDocument.Parse(attempt.SourceLineageJson);
+        var source = Assert.Single(lineage.RootElement.EnumerateArray().ToArray());
+        Assert.Equal("drawing", source.GetProperty("logical_key").GetString());
+        Assert.Equal(1, source.GetProperty("version_no").GetInt32());
+        Assert.Equal("doc-type", source.GetProperty("document_type").GetString());
+        Assert.Equal(new string('a', 64), source.GetProperty("sha256").GetString());
+        Assert.Equal("source:drawing:1", source.GetProperty("source_reference").GetString());
+    }
+
+    [Fact]
+    public async Task Invalid_provider_output_is_retained_in_attempt_history_but_never_becomes_current_draft()
+    {
+        const string raw = """{"unexpected":true}""";
+        var executions = new FakeExecutions();
+        var service = Service(
+            new FakeFiles(Version("drawing", 1, "a1")),
+            new FakeMaterializer(_ => RfqExtractionSourceMaterializationResult.Success("rfq text")),
+            new CapturingProvider(AiProviderResult.Success(raw)),
+            executions);
+
+        var result = await service.ExecuteAsync(new(
+            TenantId, RfqId, "model-a", true,
+            [new("drawing", 1, "doc-type")]));
+
+        Assert.Equal(AiExecutionDisposition.REVIEW_MANUAL, result.Disposition);
+        var attempt = Assert.Single(executions.AttemptWrites);
+        Assert.Equal(raw, attempt.RawProviderOutput);
+        Assert.Null(attempt.CanonicalDraftJson);
+    }
+
+    [Fact]
     public async Task Policy_block_is_persisted_with_deterministic_request_fingerprint()
     {
         var executions = new FakeExecutions();
