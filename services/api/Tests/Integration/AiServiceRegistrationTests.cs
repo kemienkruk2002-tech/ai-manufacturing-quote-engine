@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -13,20 +12,27 @@ namespace QuoteEngine.IntegrationTests;
 public sealed class AiServiceRegistrationTests(PostgresFixture db)
 {
     [Fact]
-    public void Ai_is_disabled_by_default_and_provider_graph_is_not_registered()
+    public async Task Ai_is_disabled_by_default_and_gateway_fails_closed_without_network()
     {
         using var factory = Factory();
-
         using var client = factory.CreateClient();
 
         Assert.False(factory.Services.GetRequiredService<IOptions<AiIntegrationOptions>>().Value.Enabled);
-        Assert.Null(factory.Services.GetService<AiGatewayV1>());
-        Assert.Null(factory.Services.GetService<IAiStructuredProvider>());
-        Assert.Null(factory.Services.GetService<OpenAiResponsesProviderV1>());
+        Assert.NotNull(factory.Services.GetRequiredService<AiGatewayV1>());
+        Assert.NotNull(factory.Services.GetRequiredService<OpenAiResponsesProviderV1>());
+        Assert.NotNull(factory.Services.GetRequiredService<RetryingAiStructuredProviderV1>());
+
+        var result = await factory.Services.GetRequiredService<AiGatewayV1>().ExecuteAsync(
+            new("rfq-extractor", "model-test", "prompt-v1", "v1", "{}"));
+
+        Assert.Equal(AiOutputGuardStatus.BLOCKED, result.Status);
+        Assert.Equal(AiGatewayV1.ProviderFailureCode, result.Code);
+        Assert.Equal(AiProviderFailureKind.PERMANENT, result.ProviderFailureKind);
+        Assert.Equal(AiServiceRegistration.DisabledCode, result.ProviderFailureCode);
     }
 
     [Fact]
-    public void Enabled_ai_registers_gateway_retry_provider_and_configured_http_client()
+    public void Enabled_ai_registers_retry_provider_and_configured_http_client()
     {
         using var factory = Factory(new Dictionary<string, string?>
         {
@@ -89,11 +95,12 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
     }
 
     [Fact]
-    public void Negative_retry_delay_fails_startup_validation_even_when_ai_is_disabled()
+    public void Enabled_ai_with_negative_retry_delay_fails_startup_validation()
     {
         using var factory = Factory(new Dictionary<string, string?>
         {
-            ["Ai:Enabled"] = "false",
+            ["Ai:Enabled"] = "true",
+            ["Ai:ApiKey"] = "integration-test-secret",
             ["Ai:RetryDelaysMs:0"] = "-1"
         });
 
@@ -102,8 +109,23 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
             using var _ = factory.CreateClient();
         });
 
-        Assert.Contains("Ai:RetryDelaysMs values must be greater than or equal to zero.",
+        Assert.Contains("Ai:RetryDelaysMs values must be greater than or equal to zero when AI is enabled.",
             error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Disabled_ai_does_not_require_api_key_or_retry_policy()
+    {
+        using var factory = Factory(new Dictionary<string, string?>
+        {
+            ["Ai:Enabled"] = "false",
+            ["Ai:BaseUrl"] = "not-a-url",
+            ["Ai:RetryDelaysMs:0"] = "-1"
+        });
+
+        using var client = factory.CreateClient();
+
+        Assert.False(factory.Services.GetRequiredService<IOptions<AiIntegrationOptions>>().Value.Enabled);
     }
 
     private AiRegistrationFactory Factory(IReadOnlyDictionary<string, string?>? ai = null) =>
