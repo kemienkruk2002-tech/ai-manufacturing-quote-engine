@@ -244,6 +244,12 @@ public sealed class RfqCanonicalReviewServiceV1Tests
             Task.FromResult(
                 tenantId == TenantId && quoteRequestId == RfqId ? Current : null);
 
+        public Task<RfqExtractionAtomicPersistenceResult> SaveAtomicAsync(
+            RfqExtractionExecutionWrite execution,
+            RfqExtractionAttemptWrite attempt,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<StoredRfqExtractionExecution> SaveAsync(
             RfqExtractionExecutionWrite write,
             CancellationToken cancellationToken = default) =>
