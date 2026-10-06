@@ -88,10 +88,7 @@ public interface IRfqExtractionExecutionRepository
 {
     Task<StoredRfqExtractionExecution> SaveAsync(RfqExtractionExecutionWrite write,
         CancellationToken cancellationToken = default);
-}
-public interface IRfqExtractionPersistenceRepository
-{
-    Task<RfqExtractionPersistenceResult> SaveAsync(RfqExtractionAttemptWrite write,
+    Task<RfqExtractionPersistenceResult> SaveAttemptAsync(RfqExtractionAttemptWrite write,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StoredRfqExtractionAttempt>> ListAttemptsAsync(Guid tenantId, Guid quoteRequestId,
         CancellationToken cancellationToken = default);
