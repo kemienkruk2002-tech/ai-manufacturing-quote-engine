@@ -57,7 +57,6 @@ public interface IQuoteRequestRepository
     Task<QuoteRequest?> UpdateDraftAsync(Guid tenantId, Guid quoteRequestId, QuoteDraftUpdate update,
         CancellationToken cancellationToken = default);
 }
-
 public interface IPartRepository { Task<PartSnapshotData> GetRevisionAsync(Guid tenantId, Guid revisionId, CancellationToken cancellationToken = default); }
 public interface IRouteRepository { Task<RouteSnapshot> GetApprovedAsync(Guid tenantId, Guid revisionId, string routeCode, string version, CancellationToken cancellationToken = default); }
 public interface IMachineRateRepository { Task<decimal?> FindRateAsync(Guid tenantId, Guid machineId, RateType rateType, DateTimeOffset effectiveAt, string rateVersion, CancellationToken cancellationToken = default); }
@@ -89,11 +88,21 @@ public interface IRfqExtractionExecutionRepository
     Task<StoredRfqExtractionExecution> SaveAsync(RfqExtractionExecutionWrite write,
         CancellationToken cancellationToken = default);
     Task<RfqExtractionPersistenceResult> SaveAttemptAsync(RfqExtractionAttemptWrite write,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UnixEpoch;
+        var attempt = new StoredRfqExtractionAttempt(Guid.Empty, write.TenantId, write.QuoteRequestId,
+            write.ModelId, write.PromptVersion, write.SchemaVersion, write.RequestFingerprint,
+            write.Disposition, write.Code, write.SourceLineageJson, write.RawProviderOutput, now);
+        StoredRfqCanonicalDraft? draft = write.CanonicalDraftJson is null ? null
+            : new(write.TenantId, write.QuoteRequestId, Guid.Empty, write.CanonicalDraftJson, 1, now, now);
+        return Task.FromResult(new RfqExtractionPersistenceResult(attempt, draft));
+    }
     Task<IReadOnlyList<StoredRfqExtractionAttempt>> ListAttemptsAsync(Guid tenantId, Guid quoteRequestId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<StoredRfqExtractionAttempt>>(Array.Empty<StoredRfqExtractionAttempt>());
     Task<StoredRfqCanonicalDraft?> FindCurrentDraftAsync(Guid tenantId, Guid quoteRequestId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default) => Task.FromResult<StoredRfqCanonicalDraft?>(null);
 }
 public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
 public interface IFileObjectStore
