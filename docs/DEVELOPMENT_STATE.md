@@ -201,7 +201,7 @@ Branch: `auto/b3-4-rfq-extraction-service`.
 - Merge `eda1601deddd9e640a756d1e8637733687c501f6`: post-merge `main` run `37435364172` **GREEN**, **671/671 unit + 215/215 integration = 886/886 PASS**.
 - This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
 
-### B3.5 Persist CanonicalRFQ draft — DONE_PR_GREEN
+### B3.5 Persist CanonicalRFQ draft — DONE
 Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 
 ## Current run findings
@@ -222,8 +222,15 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 - No B3.6 review/correction API, RFQ workflow transition, pricing, calculation engine, canonical calculation snapshot/hash/replay, geometry or frontend behavior changed.
 
 ## CI state
-- Repaired PR #21 head `afd561f146df0e81124c38832860d8a54eb6116e` is **GREEN** in run `37441176622`: **674/674 unit + 222/222 integration = 896/896 PASS**.
-- Current head contains only plan/state documentation after that verified implementation and must also pass GitHub Actions before merge.
+- Repaired implementation head `afd561f146df0e81124c38832860d8a54eb6116e` passed run `37441176622`: **896/896 PASS**.
+- Final PR #21 head `96097df9ad34d25bcb616e319443ed1067f8e6c7` passed run `37441377856`: **896/896 PASS**.
+- PR #21 merged as `7fddfcf4c3936b12f8d3255a3b27520cb7852552`.
+- Post-merge main run `37441538770` passed **674/674 unit + 222/222 integration = 896/896 PASS**.
+
+## CI state
+- PR #21 final head `96097df9ad34d25bcb616e319443ed1067f8e6c7`: **GREEN**, run `37441377856`, **896/896 PASS**.
+- Merge `7fddfcf4c3936b12f8d3255a3b27520cb7852552`: post-merge `main` run `37441538770` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
+- This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
 
 ## Exact next task
-Inspect GitHub Actions for the exact current PR #21 head. If green, merge PR #21 and verify post-merge `main` CI. On a later run, start exactly **B3.6 Review/confirmation backend** from verified main. Do not start B3.6 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.6 Review/confirmation backend** from verified main: add backend operations to confirm/reject/correct extracted fields with actor/source/reason audit, while preserving explicit MISSING/CONFLICT blocking semantics without inventing workflow transition policy. Do not start the B3 audit or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
