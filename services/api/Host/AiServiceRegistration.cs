@@ -121,7 +121,7 @@ public static class AiServiceRegistration
             string documentType,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(RfqExtractionSourceMaterializationResult.Failure(
-                "RFQ_EXTRACTION_SOURCE_MATERIALIZER_NOT_CONFIGURED"));
+                RfqExtractionServiceV1.SourceMaterializerNotConfiguredCode));
     }
 
     private sealed class BlockingAiInputRedactor : IAiInputRedactor
