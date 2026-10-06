@@ -33,7 +33,7 @@ The final implementation keeps a complete hash-verified temporary object, serial
 ### B2 audit — DONE
 DB/API/replay/tenant-isolation findings are recorded in `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`. PR #14 and post-merge main CI are green. PR #15 synchronized the verified final status and its post-merge main CI is also green.
 
-### B2.H2 Draft-only RFQ creation guard — IN_PROGRESS
+### B2.H2 Draft-only RFQ creation guard — CI_PENDING
 B2.2 requires create-draft semantics, but the current create DTO accepts arbitrary status. Restrict creation to `New` without defining any later workflow transition.
 
 ## Known blockers
@@ -70,10 +70,20 @@ B2.2 requires create-draft semantics, but the current create DTO accepts arbitra
 - Verified main before this state-only commit: **GREEN**, run `37424631448`, **824/824 PASS**.
 - This commit only synchronizes DEVELOPMENT_STATE.md after the verified PR #15 merge and must itself pass GitHub Actions before the next task starts.
 
-## Current task
-Branch: `auto/b2-h2-draft-only-create`.
+## Current run findings
+- Verified the preceding state-only main commit `0e837b7b12d2052be9942cc0633b9a66cf0d4fcf` first; run `37424813843` completed successfully.
+- Started B2.H2 from that verified main on `auto/b2-h2-draft-only-create`.
+- Confirmed the concrete audit finding in source: `CreateRfqRequest.Status` was passed directly into `QuoteRequest`, and `QuoteRequestRepository.CreateAsync` also accepted non-`New` statuses.
+- Added an API guard: omitted or explicit `New` is accepted; every explicit non-`New` status returns HTTP 400 with code `RFQ_CREATE_STATUS_INVALID`.
+- Repository creation now independently rejects every non-`New` status, so callers cannot bypass the HTTP guard through the application repository abstraction.
+- Existing read/list support for historical/non-draft statuses is preserved; tests that need an existing `DataReview` record seed that state directly instead of using the draft-create path.
+- Added `RfqCreateApiTests` covering normal draft creation, explicit `New`, all eight non-`New` enum values, and proof that rejected requests persist no RFQ row.
+- Updated repository integration coverage to reject all non-`New` create attempts while preserving list filtering and non-draft update rejection.
+- No migration, state-transition graph, approval/readiness rule, deterministic engine, snapshot/hash/replay contract, immutable history or tenant isolation behavior was changed.
 
-B2.H2 scope is deliberately narrow: the create endpoint must only create `New` RFQs. Existing status vocabulary and later transitions remain untouched; no B2.3 workflow policy is inferred.
+## CI state
+- Implementation is published on `auto/b2-h2-draft-only-create`.
+- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
 
 ## Exact next task
-Implement a deterministic API guard that rejects any explicit create status other than `New`, add focused integration coverage proving progressed/other non-New statuses cannot be created through the create API while normal draft creation still succeeds, publish a PR, and require green GitHub Actions before marking B2.H2 DONE.
+Open the B2.H2 PR and inspect GitHub Actions. If CI fails, fix only the concrete failure. If green, mark B2.H2 DONE in plan/state, merge only the verified green head, and verify post-merge `main` CI. Do not start B3 in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
