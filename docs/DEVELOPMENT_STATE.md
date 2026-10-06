@@ -273,7 +273,7 @@ Scope is limited to backend operations for explicit human review of the current 
 Inspect GitHub Actions for the exact current PR #23 head. If green, merge PR #23 and verify post-merge `main` CI. After B3.6 is fully merged and green, perform the required focused **B3 milestone audit** in this run, record findings and split follow-ups; do not start B4 or frontend in this run.
 
 
-### B3.H1 Atomic extraction persistence — CI_PENDING
+### B3.H1 Atomic extraction persistence — DONE_PR_GREEN
 Branch: `auto/b3-h1-atomic-extraction-persistence`.
 
 - Verified current main `4de58b07c0ae35f8fbd502b68f898cad6533060f` and green run `37456965868`.
@@ -288,8 +288,11 @@ Branch: `auto/b3-h1-atomic-extraction-persistence`.
 - B3 audit hardening tasks H1-H4 were copied into `AUTONOMOUS_BACKEND_PLAN.md`; H2 remains READY only after H1 is fully green/merged.
 
 ## CI state
-- Implementation is published on `auto/b3-h1-atomic-extraction-persistence`.
-- Status: **CI_PENDING** until the exact PR head passes GitHub Actions.
+- Initial head `c13ea9889673badd60d84c6811b6a683b5ce15a4` failed run `37459576977` only because the new integration test missed the `Npgsql` namespace import.
+- Head `8e8b6960123dc711641b1a86f7dce840dd49c3c0` then reached the rollback test, which exposed a test-setup SQL quoting bug before exercising H1 runtime.
+- Replaced that setup with a temporary PostgreSQL `CHECK (false) NOT VALID` constraint on current-draft writes; runtime implementation was unchanged by this test fix.
+- Verified implementation head `893ea9881b92f2820556447da93b0d1ade2aa361` is **GREEN** in run `37459976159`: **678/678 unit + 232/232 integration = 910/910 PASS**.
+- Current head contains only plan/state documentation after the verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Inspect CI for the exact B3.H1 PR head. If failed, fix only the concrete failure. If green, record exact test counts, merge only the verified head and verify post-merge `main`. Do not start B3.H2/H3/H4, B4 or frontend in this run.
+Inspect GitHub Actions for the exact current PR #26 head. If green, merge PR #26 and verify post-merge `main` CI. Do not start B3.H2/H3/H4, B4 or frontend in this run.
