@@ -75,10 +75,28 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 ## Current milestone
 **B3 — AI RFQ extraction wired end-to-end**
 
-### B3.1 AI configuration + DI — IN_PROGRESS
+### B3.1 AI configuration + DI — CI_PENDING
 Branch: `auto/b3-1-ai-config-di`.
 
 Scope: register the existing OpenAI Responses provider, retry wrapper and AiGatewayV1 behind validated server-side configuration; configure HttpClient through IHttpClientFactory; require API credentials only when AI is enabled; allow AI to remain disabled without constructing provider services. No extraction endpoint or B3.2 normalization work is included.
 
+## Current run findings
+- Verified the preceding main state commit `f2f78ea367c185b523356f6ff2f61e6c74d2876f` first; run `37426572654` completed successfully with **841/841 PASS**.
+- Confirmed there were no open PRs or pending prior tasks before starting B3.1.
+- Reviewed the existing `OpenAiResponsesProviderV1`, retry wrapper, gateway, host composition root and AI unit tests.
+- Primary-source check: OpenAI requires server-side Bearer credentials and recommends keeping API keys out of client code; Responses structured outputs use `text.format.type=json_schema`, matching the existing provider. Microsoft recommends `IHttpClientFactory` for configured clients and `ValidateOnStart` for startup options validation.
+- Added `AiIntegrationOptions` with `Ai:Enabled`, `Ai:BaseUrl`, `Ai:ApiKey` and optional `Ai:RetryDelaysMs`.
+- AI remains disabled by default. Disabled mode keeps the DI graph resolvable but selects a fail-closed provider returning `AI_DISABLED`; it does not invoke the OpenAI HTTP provider.
+- Enabled mode requires a non-empty server-side API key, an absolute HTTPS base URL and non-negative retry delays; validation runs at startup.
+- Registered a named `HttpClient`, `OpenAiResponsesProviderV1`, `SystemAiRetryDelay`, `RetryingAiStructuredProviderV1`, `IAiStructuredProvider` selection and `AiGatewayV1`.
+- The named client applies Bearer authentication only from runtime configuration. No credential or real secret was committed or logged.
+- Retry delays default to an empty list, so B3.1 does not invent a retry schedule; deployments may opt in through configuration.
+- Added host integration tests for disabled fail-closed behavior, enabled DI graph/client configuration, missing-key rejection, HTTPS validation, retry-delay validation and disabled-mode tolerance of unused provider settings.
+- Updated README with the server-side configuration contract. No AI extraction endpoint, B3.2 normalization, persistence, deterministic calculation engine, canonical snapshot/hash/replay, migrations, immutable histories or tenant isolation was changed.
+
+## CI state
+- Implementation is published on `auto/b3-1-ai-config-di`.
+- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+
 ## Exact next task
-Implement B3.1 composition-root configuration and focused startup/DI tests, publish a PR, and require green GitHub Actions. Do not start B3.2 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Open the B3.1 PR and inspect GitHub Actions. If CI fails, fix only the concrete failure. If green, record that exact green head, update plan/state, merge only the verified head, and verify post-merge `main` CI. Do not start B3.2 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
