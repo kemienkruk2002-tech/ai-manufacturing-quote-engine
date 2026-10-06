@@ -18,44 +18,30 @@ public sealed record CalculationWrite(StoredSnapshot Snapshot, QuoteSnapshotPayl
     DateTimeOffset StartedAt, DateTimeOffset FinishedAt, decimal DurationMs);
 public sealed record QuoteRequestFilter(QuoteStatus? Status = null, Guid? CustomerId = null,
     DateOnly? DueFrom = null, DateOnly? DueTo = null);
+public sealed record QuoteDraftUpdate(Guid? CustomerId, Guid? PartRevisionId, int? RequestedQuantity,
+    string Currency, string? ExternalRfqNo, DateOnly? RequestedDueDate, long ExpectedRowVersion);
 
 public interface ICustomerRepository
 {
     Task<Customer> CreateAsync(Customer customer, CancellationToken cancellationToken = default);
     Task<Customer?> FindAsync(Guid tenantId, Guid customerId, CancellationToken cancellationToken = default);
-    Task<CustomerContact> CreateContactAsync(CustomerContact contact,
-        CancellationToken cancellationToken = default);
-    Task<CustomerContact?> FindContactAsync(Guid tenantId, Guid contactId,
-        CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<CustomerContact>> ListContactsAsync(Guid tenantId, Guid customerId,
-        CancellationToken cancellationToken = default);
+    Task<CustomerContact> CreateContactAsync(CustomerContact contact, CancellationToken cancellationToken = default);
+    Task<CustomerContact?> FindContactAsync(Guid tenantId, Guid contactId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CustomerContact>> ListContactsAsync(Guid tenantId, Guid customerId, CancellationToken cancellationToken = default);
 }
 public interface IQuoteRequestRepository
 {
     Task<QuoteRequest> CreateAsync(QuoteRequest request, CancellationToken cancellationToken = default);
     Task<QuoteRequest?> FindAsync(Guid tenantId, Guid quoteRequestId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<QuoteRequest>> ListAsync(Guid tenantId, QuoteRequestFilter filter,
+    Task<IReadOnlyList<QuoteRequest>> ListAsync(Guid tenantId, QuoteRequestFilter filter, CancellationToken cancellationToken = default);
+    Task<QuoteRequest?> UpdateDraftAsync(Guid tenantId, Guid quoteRequestId, QuoteDraftUpdate update,
         CancellationToken cancellationToken = default);
 }
 
-public interface IPartRepository
-{
-    Task<PartSnapshotData> GetRevisionAsync(Guid tenantId, Guid revisionId, CancellationToken cancellationToken = default);
-}
-public interface IRouteRepository
-{
-    Task<RouteSnapshot> GetApprovedAsync(Guid tenantId, Guid revisionId, string routeCode, string version,
-        CancellationToken cancellationToken = default);
-}
-public interface IMachineRateRepository
-{
-    Task<decimal?> FindRateAsync(Guid tenantId, Guid machineId, RateType rateType, DateTimeOffset effectiveAt,
-        string rateVersion, CancellationToken cancellationToken = default);
-}
-public interface ISnapshotInputRepository
-{
-    Task<PreparedSnapshot> BuildAsync(SnapshotRequest request, CancellationToken cancellationToken = default);
-}
+public interface IPartRepository { Task<PartSnapshotData> GetRevisionAsync(Guid tenantId, Guid revisionId, CancellationToken cancellationToken = default); }
+public interface IRouteRepository { Task<RouteSnapshot> GetApprovedAsync(Guid tenantId, Guid revisionId, string routeCode, string version, CancellationToken cancellationToken = default); }
+public interface IMachineRateRepository { Task<decimal?> FindRateAsync(Guid tenantId, Guid machineId, RateType rateType, DateTimeOffset effectiveAt, string rateVersion, CancellationToken cancellationToken = default); }
+public interface ISnapshotInputRepository { Task<PreparedSnapshot> BuildAsync(SnapshotRequest request, CancellationToken cancellationToken = default); }
 public interface IQuoteSnapshotRepository
 {
     Task<StoredSnapshot> GetOrCreateAsync(Guid quoteRequestId, PreparedSnapshot prepared, CancellationToken cancellationToken = default);
@@ -68,31 +54,21 @@ public interface ICalculationRunRepository
 }
 public interface IRfqFileRepository
 {
-    Task<bool> RequestExistsAsync(Guid tenantId, Guid quoteRequestId,
-        CancellationToken cancellationToken = default);
-    Task<RfqFileVersion> GetOrCreateVersionAsync(RfqFileVersionInput input,
-        CancellationToken cancellationToken = default);
-    Task<RfqFileVersion?> FindVersionAsync(Guid tenantId, Guid quoteRequestId,
-        string logicalKey, int versionNo, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<RfqFileVersion>> ListVersionsAsync(Guid tenantId, Guid quoteRequestId,
-        string logicalKey, CancellationToken cancellationToken = default);
+    Task<bool> RequestExistsAsync(Guid tenantId, Guid quoteRequestId, CancellationToken cancellationToken = default);
+    Task<RfqFileVersion> GetOrCreateVersionAsync(RfqFileVersionInput input, CancellationToken cancellationToken = default);
+    Task<RfqFileVersion?> FindVersionAsync(Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RfqFileVersion>> ListVersionsAsync(Guid tenantId, Guid quoteRequestId, string logicalKey, CancellationToken cancellationToken = default);
 }
 public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
 public interface IFileObjectStore
 {
-    Task<FileObjectPutResult> PutAsync(Stream content, string expectedSha256,
-        CancellationToken cancellationToken = default);
+    Task<FileObjectPutResult> PutAsync(Stream content, string expectedSha256, CancellationToken cancellationToken = default);
     Task<Stream?> OpenReadAsync(string sha256, CancellationToken cancellationToken = default);
 }
-
 public sealed class FileObjectHashMismatchException(string expectedSha256, string actualSha256)
     : Exception($"FILE_OBJECT_HASH_MISMATCH: expected {expectedSha256}, calculated {actualSha256}.")
 {
     public string ExpectedSha256 { get; } = expectedSha256;
     public string ActualSha256 { get; } = actualSha256;
 }
-
-public sealed class MissingSnapshotInputException(string code, string message) : Exception(message)
-{
-    public string Code { get; } = code;
-}
+public sealed class MissingSnapshotInputException(string code, string message) : Exception(message) { public string Code { get; } = code; }
