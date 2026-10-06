@@ -198,10 +198,12 @@ Implemented in PR #20. Final PR head `0f8e9752864ccc0244c055518e460bf727a46457` 
 
 Implemented in PR #21. Repaired implementation head `afd561f146df0e81124c38832860d8a54eb6116e` passed run `37441176622`; final PR head `96097df9ad34d25bcb616e319443ed1067f8e6c7` passed run `37441377856`; merge `7fddfcf4c3936b12f8d3255a3b27520cb7852552`; post-merge main run `37441538770` passed **674 unit + 222 integration = 896/896 PASS**. Migration 010 adds immutable, tenant/RFQ-scoped extraction attempts and a separate current CanonicalRFQ draft. Raw provider output is retained separately from validated draft JSON; source lineage is persisted; arbitrary JSON cannot bypass the existing CanonicalRFQ v1 output guard; draft-to-attempt linkage is constrained to the same tenant and RFQ.
 
-### B3.6 Review/confirmation backend
+### B3.6 Review/confirmation backend — DONE_PR_GREEN
 - confirm/reject/correct extracted fields;
 - every correction records actor/source/reason;
 - critical unresolved CONFLICT/MISSING blocks progression.
+
+Implemented in PR #23. Verified implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`: **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
 
 ### B3 audit
 Security/privacy audit, hallucination/fallback audit, reproducibility audit, load/idempotency tests and CI.
