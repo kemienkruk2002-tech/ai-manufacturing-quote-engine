@@ -7,6 +7,9 @@ namespace QuoteEngine.Persistence;
 
 public sealed class LocalFileObjectStore : IFileObjectStore
 {
+    private static readonly SemaphoreSlim[] PublicationGates =
+        Enumerable.Range(0, 64).Select(_ => new SemaphoreSlim(1, 1)).ToArray();
+
     private readonly string rootPath;
 
     public LocalFileObjectStore(string rootPath)
@@ -53,25 +56,27 @@ public sealed class LocalFileObjectStore : IFileObjectStore
                     ArrayPool<byte>.Shared.Return(buffer);
                 }
             }
+
             actualSha256 = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
             if (!StringComparer.Ordinal.Equals(actualSha256, expectedSha256))
                 throw new FileObjectHashMismatchException(expectedSha256, actualSha256);
 
+            // Keep publication atomic: only a fully written, hash-verified temporary file is renamed
+            // to the content-addressed path. The striped in-process gate provides deterministic
+            // winner election across LocalFileObjectStore instances without exposing partial bytes.
+            var publicationGate = PublicationGates[Convert.ToInt32(expectedSha256[..2], 16) % PublicationGates.Length];
+            await publicationGate.WaitAsync(cancellationToken);
             try
             {
-                // File.CreateNew is the atomic winner election. A pre-check with File.Exists is
-                // insufficient because two writers can both observe absence before either creates.
-                await using var final = new FileStream(finalPath, FileMode.CreateNew, FileAccess.Write,
-                    FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await using var temporary = new FileStream(temporaryPath, FileMode.Open, FileAccess.Read,
-                    FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await temporary.CopyToAsync(final, cancellationToken);
-                await final.FlushAsync(cancellationToken);
+                if (File.Exists(finalPath))
+                    return new(expectedSha256, byteSize, false);
+
+                File.Move(temporaryPath, finalPath, false);
                 return new(expectedSha256, byteSize, true);
             }
-            catch (IOException) when (File.Exists(finalPath))
+            finally
             {
-                return new(expectedSha256, byteSize, false);
+                publicationGate.Release();
             }
         }
         finally
