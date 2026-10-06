@@ -16,6 +16,7 @@ Repository defines status vocabulary and the progressed-input invariant, but no 
 
 ### B2.4a Draft optimistic concurrency — CI_PENDING
 Branch: `auto/b2-4-draft-concurrency`
+PR: #12
 
 Implemented scope: optimistic concurrency protection for editable `New` RFQ draft fields only. Post-analysis revision semantics remain deferred while B2.3 policy is undefined.
 
@@ -32,18 +33,19 @@ Implemented scope: optimistic concurrency protection for editable `New` RFQ draf
 - B2.2 RFQ create/read/list: DONE, PR #11, merge `a3e78077b25f1396f2931b8d3707a071dc075065`, post-merge 820/820 PASS.
 
 ## Current run findings
-- Continued the already-selected B2.4a slice after confirming no open prior PR existed.
-- Added forward-only migration `009_rfq_draft_concurrency.sql` with positive `row_version BIGINT NOT NULL DEFAULT 1`.
-- `QuoteRequest` now exposes the persisted row version; create/read/list return the token.
-- Added tenant-scoped compare-and-swap `UpdateDraftAsync`: update succeeds only for `status='New'` and matching expected row version, atomically increments the version, and never changes status.
-- Added `PUT /api/tenants/{tenantId}/rfqs/{quoteRequestId}/draft`; missing RFQ returns 404, non-New draft returns `409 RFQ_NOT_EDITABLE_DRAFT`, and a stale/racing token returns `409 RFQ_DRAFT_VERSION_CONFLICT`.
-- Added focused repository tests proving two simultaneous writers using the same token yield exactly one winner and one stale rejection, plus stale/non-draft rejection coverage.
-- During review caught and removed an invalid `updated_at` write because the existing `quote_requests` schema has no such column; existing migration history was not modified.
-- No status-transition graph, post-analysis mutation semantics, pricing, approval, geometry, deterministic engine, snapshot/hash/replay or immutable-history behavior was invented or changed.
+- Inspected PR #12 CI before starting anything new, as required.
+- Run `37395124712` received a runner and failed in the test step; this was a concrete test-maintenance failure, not infrastructure.
+- Unit tests were green: **641/641**.
+- Integration result was **179 passed, 2 failed, 181 total**. Both failures were stale migration-count assertions expecting 8 after forward-only migration 009 was intentionally added:
+  - `PersistenceConstraintTests.Empty_database_migrates_and_seed_is_repeatable` expected 8, actual 9.
+  - `RfqDraftInputTests.Migrations_one_through_eight_apply_from_scratch` expected 8, actual 9.
+- Updated only those migration-baseline expectations to 9 and renamed the latter test to `Migrations_one_through_nine_apply_from_scratch`.
+- No runtime/domain behavior, migration contents/history, deterministic engines, snapshots/hashes/replay, tenant isolation or workflow policy was changed to fix CI.
 
 ## CI state
-- Implementation is published on `auto/b2-4-draft-concurrency`.
-- PR creation/CI verification is the next required gate. Do not mark DONE or merge before GitHub Actions is green for the exact PR head.
+- PR #12 remains **CI_PENDING** after the focused test fix.
+- Latest fix head includes commits `1b20a6b50a6df8e728130deddf42974a104d8008` and `bf92f06ae5de94752b934158025f08c7dee117eb`; this state commit follows them.
+- Do not mark DONE or merge until GitHub Actions is green for the exact current PR head.
 
 ## Exact next task
-Inspect the B2.4a PR CI first. If CI fails, fix only the concrete failure. If CI is green, record the verified counts/head and merge only that green head, then verify post-merge main CI. Do not start another backend task before this gate completes.
+Inspect PR #12 CI for the new head first. If it fails, fix only the concrete failure. If it is green, record verified counts/head and merge only that green head, then verify post-merge main CI. Do not start another backend task before this gate completes.
