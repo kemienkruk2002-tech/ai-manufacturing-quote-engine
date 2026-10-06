@@ -6,7 +6,7 @@ public enum QuoteStatus { New, DataReview, ReadyForCalc, Calculated, Approved, S
 
 public sealed record QuoteRequest(Guid TenantId, Guid Id, Guid? PartRevisionId, int? RequestedQuantity,
     QuoteStatus Status, string Currency = "PLN", Guid? CustomerId = null,
-    string? ExternalRfqNo = null, DateOnly? RequestedDueDate = null);
+    string? ExternalRfqNo = null, DateOnly? RequestedDueDate = null, long RowVersion = 1);
 
 public sealed record RfqFileVersionInput(Guid TenantId, Guid QuoteRequestId, string LogicalKey,
     string OriginalFileName, string? MimeType, long ByteSize, string Sha256,
