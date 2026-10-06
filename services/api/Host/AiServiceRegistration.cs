@@ -20,29 +20,31 @@ public static class AiHttpClientNames
 
 public static class AiServiceRegistration
 {
+    public const string DisabledCode = "AI_DISABLED";
+    private static readonly Uri DefaultOpenAiBaseUri = new("https://api.openai.com/");
+
     public static IServiceCollection AddQuoteEngineAi(this IServiceCollection services,
         IConfiguration configuration)
     {
-        var section = configuration.GetSection(AiIntegrationOptions.SectionName);
         services.AddOptions<AiIntegrationOptions>()
-            .Bind(section)
+            .Bind(configuration.GetSection(AiIntegrationOptions.SectionName))
             .Validate(options => !options.Enabled || IsValidHttpsBaseUrl(options.BaseUrl),
                 "Ai:BaseUrl must be an absolute HTTPS URL when AI is enabled.")
             .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.ApiKey),
                 "Ai:ApiKey is required when AI is enabled.")
-            .Validate(options => options.RetryDelaysMs.All(delay => delay >= 0),
-                "Ai:RetryDelaysMs values must be greater than or equal to zero.")
+            .Validate(options => !options.Enabled || options.RetryDelaysMs.All(delay => delay >= 0),
+                "Ai:RetryDelaysMs values must be greater than or equal to zero when AI is enabled.")
             .ValidateOnStart();
-
-        if (!section.GetValue<bool>(nameof(AiIntegrationOptions.Enabled)))
-            return services;
 
         services.AddHttpClient(AiHttpClientNames.OpenAiResponses, (provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<AiIntegrationOptions>>().Value;
-            client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", options.ApiKey);
+            client.BaseAddress = options.Enabled
+                ? new Uri(options.BaseUrl, UriKind.Absolute)
+                : DefaultOpenAiBaseUri;
+            if (!string.IsNullOrWhiteSpace(options.ApiKey))
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", options.ApiKey);
         });
 
         services.AddTransient<OpenAiResponsesProviderV1>(provider =>
@@ -51,7 +53,7 @@ public static class AiServiceRegistration
                     .CreateClient(AiHttpClientNames.OpenAiResponses)));
 
         services.AddSingleton<IAiRetryDelay, SystemAiRetryDelay>();
-        services.AddTransient<IAiStructuredProvider>(provider =>
+        services.AddTransient<RetryingAiStructuredProviderV1>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<AiIntegrationOptions>>().Value;
             var delays = options.RetryDelaysMs
@@ -62,6 +64,10 @@ public static class AiServiceRegistration
                 delays,
                 provider.GetRequiredService<IAiRetryDelay>());
         });
+        services.AddTransient<IAiStructuredProvider>(provider =>
+            provider.GetRequiredService<IOptions<AiIntegrationOptions>>().Value.Enabled
+                ? provider.GetRequiredService<RetryingAiStructuredProviderV1>()
+                : new DisabledAiStructuredProvider());
         services.AddTransient<AiGatewayV1>();
         return services;
     }
@@ -69,4 +75,12 @@ public static class AiServiceRegistration
     private static bool IsValidHttpsBaseUrl(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps;
+
+    private sealed class DisabledAiStructuredProvider : IAiStructuredProvider
+    {
+        public Task<AiProviderResult> ExecuteAsync(AiStructuredRequest request,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(AiProviderResult.Failure(
+                AiProviderFailureKind.PERMANENT, DisabledCode));
+    }
 }
