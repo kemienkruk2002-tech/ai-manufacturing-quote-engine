@@ -129,6 +129,28 @@ public sealed class RfqExtractionServiceV1Tests
     }
 
     [Fact]
+    public async Task Persisted_fingerprint_matches_provider_visible_redacted_request()
+    {
+        var provider = new CapturingProvider(AiProviderResult.Success(ValidJson()));
+        var executions = new FakeExecutions();
+        var service = Service(
+            new FakeFiles(Version("drawing", 1, "a1")),
+            new FakeMaterializer(_ => RfqExtractionSourceMaterializationResult.Success("secret rfq text")),
+            provider,
+            executions,
+            new FixedRedactor("""{"sources":[{"content":"REDACTED"}]}"""));
+
+        var result = await service.ExecuteAsync(new(
+            TenantId, RfqId, "model-a", true,
+            [new("drawing", 1, "doc-type")]));
+
+        var providerFingerprint = AiRequestFingerprintV1.Create(provider.LastRequest!).Fingerprint;
+        Assert.NotNull(providerFingerprint);
+        Assert.Equal(providerFingerprint, result.RequestFingerprint);
+        Assert.Equal(providerFingerprint, Assert.Single(executions.Writes).RequestFingerprint);
+    }
+
+    [Fact]
     public async Task Policy_block_is_persisted_with_deterministic_request_fingerprint()
     {
         var executions = new FakeExecutions();
@@ -156,7 +178,8 @@ public sealed class RfqExtractionServiceV1Tests
         FakeFiles files,
         FakeMaterializer materializer,
         CapturingProvider provider,
-        FakeExecutions executions)
+        FakeExecutions executions,
+        IAiInputRedactor? redactor = null)
     {
         var policy = new AiExecutionPolicyV1(
             new HashSet<string>(new[] { RfqExtractorPromptV1.UseCase }, StringComparer.Ordinal),
@@ -165,7 +188,7 @@ public sealed class RfqExtractionServiceV1Tests
             64 * 1024);
         var executor = new AiPolicyExecutorV1(
             new AiGatewayV1(provider),
-            new PassThroughRedactor(),
+            redactor ?? new PassThroughRedactor(),
             policy);
         return new(files, materializer, executor, executions);
     }
@@ -191,6 +214,12 @@ public sealed class RfqExtractionServiceV1Tests
 
     private static CanonicalRfqFact<T> Missing<T>() => new(
         [], default, [], null, RfqFactClassification.MISSING, false, []);
+
+    private sealed class FixedRedactor(string normalizedJson) : IAiInputRedactor
+    {
+        public AiRedactionResult Redact(string normalizedInputJson) =>
+            AiRedactionResult.Allowed(normalizedJson);
+    }
 
     private sealed class PassThroughRedactor : IAiInputRedactor
     {
