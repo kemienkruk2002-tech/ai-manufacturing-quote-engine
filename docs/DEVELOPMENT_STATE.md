@@ -72,5 +72,13 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 - Verified runtime main: **GREEN**, merge `530383cb1b9ae9f98e5a13f2b22757c6a6852ac5`, run `37426370315`, **841/841 PASS**.
 - This commit only records final B2.H2 state and must itself pass GitHub Actions before the next backend task starts.
 
+## Current milestone
+**B3 — AI RFQ extraction wired end-to-end**
+
+### B3.1 AI configuration + DI — IN_PROGRESS
+Branch: `auto/b3-1-ai-config-di`.
+
+Scope: register the existing OpenAI Responses provider, retry wrapper and AiGatewayV1 behind validated server-side configuration; configure HttpClient through IHttpClientFactory; require API credentials only when AI is enabled; allow AI to remain disabled without constructing provider services. No extraction endpoint or B3.2 normalization work is included.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this state-only commit. If green, start exactly **B3.1 AI configuration + DI** from verified main. Register the existing provider/retry/gateway behind validated configuration, keep secrets out of repository/logs, and make AI explicitly disable-able per environment. Do not start B3.2 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Implement B3.1 composition-root configuration and focused startup/DI tests, publish a PR, and require green GitHub Actions. Do not start B3.2 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
