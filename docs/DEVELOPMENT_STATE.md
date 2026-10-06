@@ -236,21 +236,33 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 - PR #22 merged as `ab9fa9d0fb034e1ed3781f087288795addc3e714`; post-merge main run `37442192884` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
 - This final documentation-only commit records that repaired verified state and must itself pass GitHub Actions before the next backend task starts.
 
-### B3.6 Review/confirmation backend — IN_PROGRESS
+### B3.6 Review/confirmation backend — CI_PENDING
 Branch: `auto/b3-6-review-confirmation`.
 
-Scope is limited to backend operations for explicit human review of the current CanonicalRFQ draft: confirm/reject/correct extracted fields with actor/source/reason audit, optimistic concurrency against the current draft row version, and deterministic readiness reporting for unresolved MISSING/CONFLICT. This task will not define RFQ status transitions or progression policy.
+Scope is limited to backend operations for explicit human review of the current CanonicalRFQ draft. No RFQ status transition or B2.3 workflow policy is defined by this task.
 
 ## Current run findings
 - Re-read current `main`, `docs/AUTONOMOUS_BACKEND_PLAN.md`, `docs/DEVELOPMENT_STATE.md` and `docs/PROJECT_AUDIT_2026-10-05.md`.
 - Verified final state-only main commit `01a3b4ebeb531eff0dcdbf5ab8cfd998b6ee965c`; run `37442379022` completed successfully with **674 unit + 222 integration = 896/896 PASS**.
-- Confirmed there are no open PRs or pending prior tasks.
+- Confirmed there were no open PRs or pending prior tasks before starting B3.6.
 - Selected exactly B3.6 as the smallest unblocked READY backend task.
-- No B3 audit, frontend, pricing, workflow transition, geometry, calculation engine or snapshot/hash/replay changes are in scope.
+- Added `RfqCanonicalReviewServiceV1` with whole-fact review paths matching the existing CanonicalRFQ validator vocabulary (for example `rfq_number`, `revisions[0]`). Nested property patching is rejected.
+- `CORRECT` accepts a complete replacement CanonicalRFQ fact, patches exactly one fact, and re-runs the existing `RfqExtractorOutputGuardV1` over the complete draft. A correction cannot bypass CanonicalRFQ v1.
+- `CONFIRM` and `REJECT` do not rewrite extracted fact data. Every review action still advances the draft `row_version`, so stale human reviews are rejected deterministically.
+- Added `RfqCanonicalReviewRepository`. Draft update and append-only audit insertion happen in one PostgreSQL transaction with compare-and-swap on `row_version`.
+- Reused existing immutable `audit_events` rather than adding a duplicate history table. Review events record field path, decision, authenticated actor, caller-provided source, reason, source attempt, before/after fact JSON, before/after row version and correlation ID.
+- Review actor is taken from exactly one authenticated `NameIdentifier` claim. No actor identity is accepted from request JSON.
+- Added tenant-scoped API operations to read the current CanonicalRFQ draft, submit field review, read review readiness and read review history.
+- Readiness is a report only; it never changes RFQ status. Current `MISSING` and `CONFLICT` facts remain explicit blockers, and a latest `REJECT` adds a blocker even when the underlying extracted fact is otherwise resolved.
+- A `CONFIRM` event does not erase a current `MISSING` or `CONFLICT`; only a valid correction that changes the CanonicalRFQ fact can remove that blocker.
+- Added focused unit tests for exact-fact replacement, schema-bypass rejection, path validation and readiness semantics.
+- Added PostgreSQL integration tests for atomic review+audit, append-only audit immutability, stale-version no-write behavior and tenant isolation.
+- Added API integration tests for authenticated actor capture, history, 409 stale review, readiness without RFQ status mutation, valid correction and invalid correction rejection.
+- No migration, pricing, margin, workflow transition, geometry, calculation engine, canonical calculation snapshot/hash/replay or frontend behavior was changed.
 
 ## CI state
-- B3.6 branch created from verified main; implementation not yet published.
-- Status: **IN_PROGRESS**.
+- Implementation is published on `auto/b3-6-review-confirmation`.
+- Status: **CI_PENDING** until the exact PR head passes GitHub Actions.
 
 ## Exact next task
-Implement and test B3.6 only. Do not start the B3 audit or frontend in this run.
+Inspect CI for the exact B3.6 PR head. If it fails, fix only the concrete failure. If green, perform a focused B3.6 review, record exact counts, merge only the verified head and verify post-merge `main`. Do not start the B3 audit or frontend in this run.
