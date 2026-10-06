@@ -236,5 +236,21 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 - PR #22 merged as `ab9fa9d0fb034e1ed3781f087288795addc3e714`; post-merge main run `37442192884` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
 - This final documentation-only commit records that repaired verified state and must itself pass GitHub Actions before the next backend task starts.
 
+### B3.6 Review/confirmation backend — IN_PROGRESS
+Branch: `auto/b3-6-review-confirmation`.
+
+Scope is limited to backend operations for explicit human review of the current CanonicalRFQ draft: confirm/reject/correct extracted fields with actor/source/reason audit, optimistic concurrency against the current draft row version, and deterministic readiness reporting for unresolved MISSING/CONFLICT. This task will not define RFQ status transitions or progression policy.
+
+## Current run findings
+- Re-read current `main`, `docs/AUTONOMOUS_BACKEND_PLAN.md`, `docs/DEVELOPMENT_STATE.md` and `docs/PROJECT_AUDIT_2026-10-05.md`.
+- Verified final state-only main commit `01a3b4ebeb531eff0dcdbf5ab8cfd998b6ee965c`; run `37442379022` completed successfully with **674 unit + 222 integration = 896/896 PASS**.
+- Confirmed there are no open PRs or pending prior tasks.
+- Selected exactly B3.6 as the smallest unblocked READY backend task.
+- No B3 audit, frontend, pricing, workflow transition, geometry, calculation engine or snapshot/hash/replay changes are in scope.
+
+## CI state
+- B3.6 branch created from verified main; implementation not yet published.
+- Status: **IN_PROGRESS**.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.6 Review/confirmation backend** from verified main: add backend operations to confirm/reject/correct extracted fields with actor/source/reason audit, while preserving explicit MISSING/CONFLICT blocking semantics without inventing workflow transition policy. Do not start the B3 audit or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Implement and test B3.6 only. Do not start the B3 audit or frontend in this run.
