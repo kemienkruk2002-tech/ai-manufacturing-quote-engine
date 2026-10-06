@@ -75,7 +75,7 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 ## Current milestone
 **B3 — AI RFQ extraction wired end-to-end**
 
-### B3.1 AI configuration + DI — CI_PENDING
+### B3.1 AI configuration + DI — DONE_PR_GREEN
 Branch: `auto/b3-1-ai-config-di`.
 
 Scope: register the existing OpenAI Responses provider, retry wrapper and AiGatewayV1 behind validated server-side configuration; configure HttpClient through IHttpClientFactory; require API credentials only when AI is enabled; allow AI to remain disabled without constructing provider services. No extraction endpoint or B3.2 normalization work is included.
@@ -96,7 +96,10 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 
 ## CI state
 - Implementation is published on `auto/b3-1-ai-config-di`.
-- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+- Initial PR head `afd8e33072dbd0bf9f8a9b92c1a4884d5d4da966` failed run `37427440602` at compile time only: CS0123 on method-group projection to `TimeSpan.FromMilliseconds`.
+- Fixed only that concrete build error with an explicit `delay => TimeSpan.FromMilliseconds(delay)` projection.
+- Verified implementation head `1aac38c1af6d9ed82670a9fd20ee0271b8a38030` passed run `37427572933`: **641/641 unit + 206/206 integration = 847/847 PASS**.
+- Current head contains status documentation after that verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Open the B3.1 PR and inspect GitHub Actions. If CI fails, fix only the concrete failure. If green, record that exact green head, update plan/state, merge only the verified head, and verify post-merge `main` CI. Do not start B3.2 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #17 head. If green, merge PR #17 and verify post-merge `main` CI. On a later run, start exactly **B3.2 deterministic AI input normalization** from verified main. Do not start B3.2 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
