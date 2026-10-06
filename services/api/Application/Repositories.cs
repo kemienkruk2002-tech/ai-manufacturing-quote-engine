@@ -20,6 +20,7 @@ public sealed record QuoteRequestFilter(QuoteStatus? Status = null, Guid? Custom
     DateOnly? DueFrom = null, DateOnly? DueTo = null);
 public sealed record QuoteDraftUpdate(Guid? CustomerId, Guid? PartRevisionId, int? RequestedQuantity,
     string Currency, string? ExternalRfqNo, DateOnly? RequestedDueDate, long ExpectedRowVersion);
+public sealed record RfqFileManifestDocument(Guid DocumentId, string LogicalKey, IReadOnlyList<RfqFileVersion> Versions);
 
 public interface ICustomerRepository
 {
@@ -58,6 +59,11 @@ public interface IRfqFileRepository
     Task<RfqFileVersion> GetOrCreateVersionAsync(RfqFileVersionInput input, CancellationToken cancellationToken = default);
     Task<RfqFileVersion?> FindVersionAsync(Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RfqFileVersion>> ListVersionsAsync(Guid tenantId, Guid quoteRequestId, string logicalKey, CancellationToken cancellationToken = default);
+}
+public interface IRfqFileManifestRepository
+{
+    Task<IReadOnlyList<RfqFileManifestDocument>> ListAsync(Guid tenantId, Guid quoteRequestId,
+        CancellationToken cancellationToken = default);
 }
 public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
 public interface IFileObjectStore
