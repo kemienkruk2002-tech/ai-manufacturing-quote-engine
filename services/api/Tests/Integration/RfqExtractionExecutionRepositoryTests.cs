@@ -56,14 +56,8 @@ public sealed class RfqExtractionExecutionRepositoryTests(PostgresFixture db)
         var canonical = ValidCanonicalJson();
 
         await using (var command = db.DataSource.CreateCommand("""
-            CREATE FUNCTION fail_b3_h1_draft_write() RETURNS trigger LANGUAGE plpgsql AS $
-            BEGIN
-                RAISE EXCEPTION 'B3_H1_FORCED_DRAFT_FAILURE' USING ERRCODE = 'P0001';
-            END;
-            $;
-            CREATE TRIGGER fail_b3_h1_draft_write
-            BEFORE INSERT OR UPDATE ON rfq_canonical_drafts
-            FOR EACH ROW EXECUTE FUNCTION fail_b3_h1_draft_write();
+            ALTER TABLE rfq_canonical_drafts
+            ADD CONSTRAINT b3_h1_forced_draft_failure CHECK (false) NOT VALID
             """))
         {
             await command.ExecuteNonQueryAsync();
@@ -95,15 +89,15 @@ public sealed class RfqExtractionExecutionRepositoryTests(PostgresFixture db)
                         canonical,
                         canonical)));
 
-            Assert.Equal("P0001", error.SqlState);
+            Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
             Assert.Equal(0L, await CountExtractionAuditsAsync(rfqId));
             Assert.Equal(0L, await CountAttemptsAsync(rfqId));
         }
         finally
         {
             await using var cleanup = db.DataSource.CreateCommand("""
-                DROP TRIGGER IF EXISTS fail_b3_h1_draft_write ON rfq_canonical_drafts;
-                DROP FUNCTION IF EXISTS fail_b3_h1_draft_write();
+                ALTER TABLE rfq_canonical_drafts
+                DROP CONSTRAINT IF EXISTS b3_h1_forced_draft_failure
                 """);
             await cleanup.ExecuteNonQueryAsync();
         }
