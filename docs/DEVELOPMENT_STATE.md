@@ -72,5 +72,34 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 - Verified runtime main: **GREEN**, merge `530383cb1b9ae9f98e5a13f2b22757c6a6852ac5`, run `37426370315`, **841/841 PASS**.
 - This commit only records final B2.H2 state and must itself pass GitHub Actions before the next backend task starts.
 
+## Current milestone
+**B3 — AI RFQ extraction wired end-to-end**
+
+### B3.1 AI configuration + DI — DONE_PR_GREEN
+Branch: `auto/b3-1-ai-config-di`.
+
+Scope: register the existing OpenAI Responses provider, retry wrapper and AiGatewayV1 behind validated server-side configuration; configure HttpClient through IHttpClientFactory; require API credentials only when AI is enabled; allow AI to remain disabled without constructing provider services. No extraction endpoint or B3.2 normalization work is included.
+
+## Current run findings
+- Verified the preceding main state commit `f2f78ea367c185b523356f6ff2f61e6c74d2876f` first; run `37426572654` completed successfully with **841/841 PASS**.
+- Confirmed there were no open PRs or pending prior tasks before starting B3.1.
+- Reviewed the existing `OpenAiResponsesProviderV1`, retry wrapper, gateway, host composition root and AI unit tests.
+- Primary-source check: OpenAI requires server-side Bearer credentials and recommends keeping API keys out of client code; Responses structured outputs use `text.format.type=json_schema`, matching the existing provider. Microsoft recommends `IHttpClientFactory` for configured clients and `ValidateOnStart` for startup options validation.
+- Added `AiIntegrationOptions` with `Ai:Enabled`, `Ai:BaseUrl`, `Ai:ApiKey` and optional `Ai:RetryDelaysMs`.
+- AI remains disabled by default. Disabled mode keeps the DI graph resolvable but selects a fail-closed provider returning `AI_DISABLED`; it does not invoke the OpenAI HTTP provider.
+- Enabled mode requires a non-empty server-side API key, an absolute HTTPS base URL and non-negative retry delays; validation runs at startup.
+- Registered a named `HttpClient`, `OpenAiResponsesProviderV1`, `SystemAiRetryDelay`, `RetryingAiStructuredProviderV1`, `IAiStructuredProvider` selection and `AiGatewayV1`.
+- The named client applies Bearer authentication only from runtime configuration. No credential or real secret was committed or logged.
+- Retry delays default to an empty list, so B3.1 does not invent a retry schedule; deployments may opt in through configuration.
+- Added host integration tests for disabled fail-closed behavior, enabled DI graph/client configuration, missing-key rejection, HTTPS validation, retry-delay validation and disabled-mode tolerance of unused provider settings.
+- Updated README with the server-side configuration contract. No AI extraction endpoint, B3.2 normalization, persistence, deterministic calculation engine, canonical snapshot/hash/replay, migrations, immutable histories or tenant isolation was changed.
+
+## CI state
+- Implementation is published on `auto/b3-1-ai-config-di`.
+- Initial PR head `afd8e33072dbd0bf9f8a9b92c1a4884d5d4da966` failed run `37427440602` at compile time only: CS0123 on method-group projection to `TimeSpan.FromMilliseconds`.
+- Fixed only that concrete build error with an explicit `delay => TimeSpan.FromMilliseconds(delay)` projection.
+- Verified implementation head `1aac38c1af6d9ed82670a9fd20ee0271b8a38030` passed run `37427572933`: **641/641 unit + 206/206 integration = 847/847 PASS**.
+- Current head contains status documentation after that verified implementation and must also pass GitHub Actions before merge.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this state-only commit. If green, start exactly **B3.1 AI configuration + DI** from verified main. Register the existing provider/retry/gateway behind validated configuration, keep secrets out of repository/logs, and make AI explicitly disable-able per environment. Do not start B3.2 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #17 head. If green, merge PR #17 and verify post-merge `main` CI. On a later run, start exactly **B3.2 deterministic AI input normalization** from verified main. Do not start B3.2 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
