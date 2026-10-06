@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using QuoteEngine.Application;
+using QuoteEngine.Application.Ai;
 using QuoteEngine.Api;
 using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
