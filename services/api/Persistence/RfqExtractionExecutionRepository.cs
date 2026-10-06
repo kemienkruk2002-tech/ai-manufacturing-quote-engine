@@ -79,7 +79,7 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
         if (createdValue is null)
             throw new DomainValidationException("RFQ_EXTRACTION_HISTORY_RFQ_NOT_FOUND",
                 "The RFQ does not exist in the requested tenant.");
-        var createdAt = (DateTimeOffset)createdValue;
+        var createdAt = ToDateTimeOffset(createdValue);
 
         StoredRfqCanonicalDraft? draft = null;
         if (write.Disposition == AiExecutionDisposition.COMPLETED && write.CanonicalDraftJson is not null)
@@ -103,7 +103,7 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
             if (!await reader.ReadAsync(cancellationToken))
                 throw new InvalidOperationException("Canonical RFQ draft upsert returned no row.");
             draft = new(write.TenantId, write.QuoteRequestId, reader.GetGuid(0), reader.GetString(1),
-                reader.GetInt64(2), reader.GetFieldValue<DateTimeOffset>(3), reader.GetFieldValue<DateTimeOffset>(4));
+                reader.GetInt64(2), ReadDateTimeOffset(reader, 3), ReadDateTimeOffset(reader, 4));
         }
         await transaction.CommitAsync(cancellationToken);
         var attempt = new StoredRfqExtractionAttempt(attemptId, write.TenantId, write.QuoteRequestId,
@@ -132,7 +132,7 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
                 reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
                 Enum.Parse<AiExecutionDisposition>(reader.GetString(5), false),
                 reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetFieldValue<DateTimeOffset>(9)));
+                reader.IsDBNull(8) ? null : reader.GetString(8), ReadDateTimeOffset(reader, 9)));
         return results;
     }
 
@@ -150,7 +150,7 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) return null;
         return new(tenantId, quoteRequestId, reader.GetGuid(0), reader.GetString(1), reader.GetInt64(2),
-            reader.GetFieldValue<DateTimeOffset>(3), reader.GetFieldValue<DateTimeOffset>(4));
+            ReadDateTimeOffset(reader, 3), ReadDateTimeOffset(reader, 4));
     }
 
     private static void ValidateAudit(RfqExtractionExecutionWrite write)
@@ -173,7 +173,12 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
             throw new DomainValidationException("RFQ_EXTRACTION_HISTORY_CODE_INVALID", "Result code must be null or non-empty.");
         ValidateJson(write.SourceLineageJson, JsonValueKind.Array, "RFQ_EXTRACTION_HISTORY_LINEAGE_INVALID");
         if (write.CanonicalDraftJson is not null)
-            ValidateJson(write.CanonicalDraftJson, JsonValueKind.Object, "RFQ_EXTRACTION_DRAFT_INVALID");
+        {
+            var canonicalGuard = RfqExtractorOutputGuardV1.Evaluate(write.CanonicalDraftJson);
+            if (!canonicalGuard.IsPass)
+                throw new DomainValidationException("RFQ_EXTRACTION_DRAFT_INVALID",
+                    "Current draft must satisfy the existing CanonicalRFQ v1 contract.");
+        }
         if (write.Disposition != AiExecutionDisposition.COMPLETED && write.CanonicalDraftJson is not null)
             throw new DomainValidationException("RFQ_EXTRACTION_DRAFT_DISPOSITION_INVALID",
                 "Only a completed validated extraction may initialize the current draft.");
@@ -204,6 +209,16 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
             throw new DomainValidationException(code, "Persisted extraction JSON has an invalid shape.");
         }
     }
+
+    private static DateTimeOffset ReadDateTimeOffset(NpgsqlDataReader reader, int ordinal) =>
+        ToDateTimeOffset(reader.GetValue(ordinal));
+
+    private static DateTimeOffset ToDateTimeOffset(object value) => value switch
+    {
+        DateTimeOffset offset => offset.ToUniversalTime(),
+        DateTime dateTime => new DateTimeOffset(DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)),
+        _ => throw new InvalidOperationException($"Unexpected PostgreSQL timestamp value type: {value.GetType().FullName}.")
+    };
 
     private static void ValidateIdentity(Guid tenantId, Guid quoteRequestId)
     {
