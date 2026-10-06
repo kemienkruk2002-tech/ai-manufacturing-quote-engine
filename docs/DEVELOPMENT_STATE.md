@@ -33,7 +33,7 @@ The final implementation keeps a complete hash-verified temporary object, serial
 ### B2 audit — DONE
 DB/API/replay/tenant-isolation findings are recorded in `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`. PR #14 and post-merge main CI are green. PR #15 synchronized the verified final status and its post-merge main CI is also green.
 
-### B2.H2 Draft-only RFQ creation guard — CI_PENDING
+### B2.H2 Draft-only RFQ creation guard — DONE
 B2.2 requires create-draft semantics, but the current create DTO accepts arbitrary status. Restrict creation to `New` without defining any later workflow transition.
 
 ## Known blockers
@@ -80,10 +80,11 @@ B2.2 requires create-draft semantics, but the current create DTO accepts arbitra
 - Added `RfqCreateApiTests` covering normal draft creation, explicit `New`, all eight non-`New` enum values, and proof that rejected requests persist no RFQ row.
 - Updated repository integration coverage to reject all non-`New` create attempts while preserving list filtering and non-draft update rejection.
 - No migration, state-transition graph, approval/readiness rule, deterministic engine, snapshot/hash/replay contract, immutable history or tenant isolation behavior was changed.
+- PR #16 implementation head `a18b20934ed5ce62e2da704c2c5d2a022bfde749` passed run `37426044035` with **841/841 PASS**.
 
 ## CI state
-- Implementation is published on `auto/b2-h2-draft-only-create`.
-- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+- PR #16 implementation head `a18b20934ed5ce62e2da704c2c5d2a022bfde749` is **GREEN** in run `37426044035`: **641/641 unit + 200/200 integration = 841/841 PASS**.
+- Current head contains only status documentation after that verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Open the B2.H2 PR and inspect GitHub Actions. If CI fails, fix only the concrete failure. If green, mark B2.H2 DONE in plan/state, merge only the verified green head, and verify post-merge `main` CI. Do not start B3 in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #16 head. If green, merge PR #16 and verify post-merge `main` CI. On a later run, if main is green, B3.1 AI configuration + DI is the next independent backend milestone task while B2.3/B2.4b remain blocked unless workflow policy is supplied. Do not start B3 in this run.
