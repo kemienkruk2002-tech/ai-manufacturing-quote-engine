@@ -59,7 +59,10 @@ public interface IRfqFileRepository
     Task<RfqFileVersion> GetOrCreateVersionAsync(RfqFileVersionInput input, CancellationToken cancellationToken = default);
     Task<RfqFileVersion?> FindVersionAsync(Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RfqFileVersion>> ListVersionsAsync(Guid tenantId, Guid quoteRequestId, string logicalKey, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<RfqFileManifestDocument>> ListManifestAsync(Guid tenantId, Guid quoteRequestId,
+}
+public interface IRfqFileManifestRepository
+{
+    Task<IReadOnlyList<RfqFileManifestDocument>> ListAsync(Guid tenantId, Guid quoteRequestId,
         CancellationToken cancellationToken = default);
 }
 public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
