@@ -1,3 +1,4 @@
+using QuoteEngine.Application.Ai;
 using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Customers;
 using QuoteEngine.Domain.Machines;
@@ -21,6 +22,12 @@ public sealed record QuoteRequestFilter(QuoteStatus? Status = null, Guid? Custom
 public sealed record QuoteDraftUpdate(Guid? CustomerId, Guid? PartRevisionId, int? RequestedQuantity,
     string Currency, string? ExternalRfqNo, DateOnly? RequestedDueDate, long ExpectedRowVersion);
 public sealed record RfqFileManifestDocument(Guid DocumentId, string LogicalKey, IReadOnlyList<RfqFileVersion> Versions);
+public sealed record RfqExtractionExecutionWrite(Guid TenantId, Guid QuoteRequestId,
+    string ModelId, string PromptVersion, string SchemaVersion, string? RequestFingerprint,
+    AiExecutionDisposition Disposition, string? Code);
+public sealed record StoredRfqExtractionExecution(Guid AuditEventId, Guid TenantId, Guid QuoteRequestId,
+    string ModelId, string PromptVersion, string SchemaVersion, string? RequestFingerprint,
+    AiExecutionDisposition Disposition, string? Code, DateTimeOffset CreatedAt);
 
 public interface ICustomerRepository
 {
@@ -63,6 +70,11 @@ public interface IRfqFileRepository
 public interface IRfqFileManifestRepository
 {
     Task<IReadOnlyList<RfqFileManifestDocument>> ListAsync(Guid tenantId, Guid quoteRequestId,
+        CancellationToken cancellationToken = default);
+}
+public interface IRfqExtractionExecutionRepository
+{
+    Task<StoredRfqExtractionExecution> SaveAsync(RfqExtractionExecutionWrite write,
         CancellationToken cancellationToken = default);
 }
 public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
