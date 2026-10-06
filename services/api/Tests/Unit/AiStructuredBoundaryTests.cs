@@ -7,6 +7,88 @@ namespace QuoteEngine.UnitTests;
 public sealed class AiStructuredBoundaryTests
 {
     [Fact]
+    public void Equivalent_object_json_normalizes_to_identical_bytes_and_fingerprint()
+    {
+        const string first = """
+            {
+              "b": 2,
+              "a": {
+                "z": true,
+                "y": [ { "d": 4, "c": 3 }, 2 ]
+              }
+            }
+            """;
+        const string second = """{"a":{"y":[{"c":3,"d":4},2],"z":true},"b":2}""";
+
+        var firstNormalized = AiInputJsonNormalizerV1.Normalize(first);
+        var secondNormalized = AiInputJsonNormalizerV1.Normalize(second);
+
+        Assert.True(firstNormalized.IsValid);
+        Assert.True(secondNormalized.IsValid);
+        Assert.Equal("""{"a":{"y":[{"c":3,"d":4},2],"z":true},"b":2}""",
+            firstNormalized.NormalizedJson);
+        Assert.Equal(firstNormalized.NormalizedJson, secondNormalized.NormalizedJson);
+        Assert.Equal(
+            Fingerprint(Request() with { NormalizedInputJson = first }),
+            Fingerprint(Request() with { NormalizedInputJson = second }));
+    }
+
+    [Theory]
+    [InlineData("""{"n":1}""")]
+    [InlineData("""{"n":1.0}""")]
+    [InlineData("""{"n":10e-1}""")]
+    [InlineData("""{"n":0.10e1}""")]
+    public void Equivalent_number_lexemes_have_identical_normalization_and_fingerprint(string json)
+    {
+        var normalized = AiInputJsonNormalizerV1.Normalize(json);
+
+        Assert.True(normalized.IsValid);
+        Assert.Equal("""{"n":1}""", normalized.NormalizedJson);
+        Assert.Equal(
+            Fingerprint(Request() with { NormalizedInputJson = """{"n":1}""" }),
+            Fingerprint(Request() with { NormalizedInputJson = json }));
+    }
+
+    [Theory]
+    [InlineData("""{"n":1000}""", """{"n":1e3}""")]
+    [InlineData("""{"n":0.001}""", """{"n":1e-3}""")]
+    [InlineData("""{"n":-0.0}""", """{"n":0}""")]
+    public void Exact_decimal_number_normalization_does_not_require_floating_point(
+        string input, string expected)
+    {
+        var normalized = AiInputJsonNormalizerV1.Normalize(input);
+
+        Assert.True(normalized.IsValid);
+        Assert.Equal(expected, normalized.NormalizedJson);
+    }
+
+    [Fact]
+    public void Array_order_and_value_types_remain_semantically_significant()
+    {
+        var baseline = Fingerprint(Request() with { NormalizedInputJson = """{"a":[1,"1"]}""" });
+        var reversed = Fingerprint(Request() with { NormalizedInputJson = """{"a":["1",1]}""" });
+        var changedType = Fingerprint(Request() with { NormalizedInputJson = """{"a":[1,1]}""" });
+
+        Assert.NotEqual(baseline, reversed);
+        Assert.NotEqual(baseline, changedType);
+        Assert.NotEqual(reversed, changedType);
+    }
+
+    [Fact]
+    public void Duplicate_property_names_are_rejected_as_ambiguous_input()
+    {
+        var normalization = AiInputJsonNormalizerV1.Normalize("""{"a":1,"a":1}""");
+        var fingerprint = AiRequestFingerprintV1.Create(
+            Request() with { NormalizedInputJson = """{"a":1,"a":1}""" });
+
+        Assert.False(normalization.IsValid);
+        Assert.Null(normalization.NormalizedJson);
+        Assert.False(fingerprint.IsValid);
+        Assert.Equal("AI_REQUEST_INVALID", fingerprint.Code);
+        Assert.Null(fingerprint.Fingerprint);
+    }
+
+    [Fact]
     public void Same_request_one_hundred_times_has_identical_lowercase_sha256()
     {
         var request = Request();

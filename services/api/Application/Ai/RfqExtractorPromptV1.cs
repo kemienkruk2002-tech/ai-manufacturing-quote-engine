@@ -25,7 +25,11 @@ public static class RfqExtractorPromptV1
             || !StringComparer.Ordinal.Equals(request.SchemaVersion, SchemaVersion))
             return new(false, PromptNotSupportedCode, null);
 
-        var userPrompt = $"INPUT_JSON:\n{request.NormalizedInputJson}\n\nReturn only JSON conforming to RFQ_EXTRACTOR/v1.";
+        var normalized = AiInputJsonNormalizerV1.Normalize(request.NormalizedInputJson);
+        if (!normalized.IsValid)
+            return new(false, AiStructuredRequestValidatorV1.InvalidCode, null);
+
+        var userPrompt = $"INPUT_JSON:\n{normalized.NormalizedJson}\n\nReturn only JSON conforming to RFQ_EXTRACTOR/v1.";
         return new(true, null, new(UseCase, PromptVersion, SchemaVersion, SystemPrompt, userPrompt));
     }
 }

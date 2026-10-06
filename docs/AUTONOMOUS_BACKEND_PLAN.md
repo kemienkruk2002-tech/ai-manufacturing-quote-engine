@@ -166,10 +166,12 @@ Goal: turn the already-tested AI library into a controlled production backend fe
 
 Implemented in PR #17. Final PR head `329b8f290b026381f96d838e58366abbe92e96dd` passed run `37427756955`; merge `666d9d0d5d9b532a194df8ab074496f1a044e81e`; post-merge main run `37428227503` passed **641 unit + 206 integration = 847/847**. Disabled mode fails closed with provider code `AI_DISABLED` and performs no external request. Retry timing remains explicit configuration; no schedule was invented.
 
-### B3.2 Deterministic AI input normalization
+### B3.2 Deterministic AI input normalization — DONE_PR_GREEN
 - canonicalize normalized JSON before fingerprinting;
 - prove semantically identical supported inputs generate identical fingerprints;
 - do not broaden CanonicalRFQ schema silently.
+
+Implemented in PR #18. Verified head `b0f631d9bd375e62e58c42dcc61272537c279f99` passed run `37429166917`: **652 unit + 206 integration = 858/858 PASS**. Normalization recursively sorts object properties, preserves array order/types, rejects duplicate names, and canonicalizes exact decimal number lexemes without floating-point conversion. CanonicalRFQ v1 is unchanged.
 
 ### B3.3 AI execution policy
 - allow_external_ai flag;

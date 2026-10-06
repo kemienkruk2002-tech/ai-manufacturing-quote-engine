@@ -1,4 +1,7 @@
+using System.Buffers;
 using System.Buffers.Binary;
+using System.Globalization;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +12,121 @@ namespace QuoteEngine.Application.Ai;
 
 public sealed record AiStructuredRequest(string UseCase, string ModelId, string PromptVersion,
     string SchemaVersion, string NormalizedInputJson);
+
+public sealed record AiInputJsonNormalizationResult(bool IsValid, string? NormalizedJson);
+
+public static class AiInputJsonNormalizerV1
+{
+    public static AiInputJsonNormalizationResult Normalize(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new(false, null);
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return new(false, null);
+        }
+
+        using (document)
+        {
+            var buffer = new ArrayBufferWriter<byte>();
+            using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = false });
+            try
+            {
+                WriteCanonical(writer, document.RootElement);
+                writer.Flush();
+            }
+            catch (InvalidOperationException)
+            {
+                return new(false, null);
+            }
+
+            return new(true, Encoding.UTF8.GetString(buffer.WrittenSpan));
+        }
+    }
+
+    private static void WriteCanonical(Utf8JsonWriter writer, JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+            {
+                var properties = element.EnumerateObject().ToArray();
+                if (properties.Select(property => property.Name).Distinct(StringComparer.Ordinal).Count()
+                    != properties.Length)
+                    throw new InvalidOperationException("Duplicate JSON property names are not supported.");
+
+                writer.WriteStartObject();
+                foreach (var property in properties.OrderBy(property => property.Name, StringComparer.Ordinal))
+                {
+                    writer.WritePropertyName(property.Name);
+                    WriteCanonical(writer, property.Value);
+                }
+                writer.WriteEndObject();
+                break;
+            }
+            case JsonValueKind.Array:
+                writer.WriteStartArray();
+                foreach (var item in element.EnumerateArray()) WriteCanonical(writer, item);
+                writer.WriteEndArray();
+                break;
+            case JsonValueKind.String:
+                writer.WriteStringValue(element.GetString());
+                break;
+            case JsonValueKind.Number:
+                writer.WriteRawValue(NormalizeNumber(element.GetRawText()), skipInputValidation: true);
+                break;
+            case JsonValueKind.True:
+                writer.WriteBooleanValue(true);
+                break;
+            case JsonValueKind.False:
+                writer.WriteBooleanValue(false);
+                break;
+            case JsonValueKind.Null:
+                writer.WriteNullValue();
+                break;
+            default:
+                throw new InvalidOperationException("Unsupported JSON token.");
+        }
+    }
+
+    private static string NormalizeNumber(string raw)
+    {
+        var negative = raw[0] == '-';
+        var unsigned = negative ? raw[1..] : raw;
+        var exponentIndex = unsigned.IndexOfAny(['e', 'E']);
+        var mantissa = exponentIndex >= 0 ? unsigned[..exponentIndex] : unsigned;
+        var exponent = exponentIndex >= 0
+            ? BigInteger.Parse(unsigned[(exponentIndex + 1)..],
+                NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture)
+            : BigInteger.Zero;
+
+        var decimalIndex = mantissa.IndexOf('.');
+        var integerPart = decimalIndex >= 0 ? mantissa[..decimalIndex] : mantissa;
+        var fractionalPart = decimalIndex >= 0 ? mantissa[(decimalIndex + 1)..] : string.Empty;
+        var digits = (integerPart + fractionalPart).TrimStart('0');
+        if (digits.Length == 0) return "0";
+
+        var scale = exponent - fractionalPart.Length;
+        var trailingZeros = 0;
+        for (var index = digits.Length - 1; index >= 0 && digits[index] == '0'; index--)
+            trailingZeros++;
+        if (trailingZeros > 0)
+        {
+            digits = digits[..^trailingZeros];
+            scale += trailingZeros;
+        }
+
+        var sign = negative ? "-" : string.Empty;
+        return scale.IsZero
+            ? sign + digits
+            : sign + digits + "e" + scale.ToString(CultureInfo.InvariantCulture);
+    }
+}
 
 public sealed record AiStructuredRequestValidationResult(bool IsValid, string? Code,
     IReadOnlyList<string> InvalidFields);
@@ -31,17 +149,9 @@ public static class AiStructuredRequestValidatorV1
         Required(request.PromptVersion, "prompt_version", invalid);
         Required(request.SchemaVersion, "schema_version", invalid);
         Required(request.NormalizedInputJson, "normalized_input_json", invalid);
-        if (!string.IsNullOrWhiteSpace(request.NormalizedInputJson))
-        {
-            try
-            {
-                using var _ = JsonDocument.Parse(request.NormalizedInputJson);
-            }
-            catch (JsonException)
-            {
-                invalid.Add("normalized_input_json");
-            }
-        }
+        if (!string.IsNullOrWhiteSpace(request.NormalizedInputJson)
+            && !AiInputJsonNormalizerV1.Normalize(request.NormalizedInputJson).IsValid)
+            invalid.Add("normalized_input_json");
         return invalid.Count == 0
             ? new(true, null, Array.Empty<string>())
             : new(false, InvalidCode, invalid.Distinct(StringComparer.Ordinal).ToArray());
@@ -70,7 +180,9 @@ public static class AiRequestFingerprintV1
         Append(hash, request.ModelId);
         Append(hash, request.PromptVersion);
         Append(hash, request.SchemaVersion);
-        Append(hash, request.NormalizedInputJson);
+        var normalized = AiInputJsonNormalizerV1.Normalize(request.NormalizedInputJson);
+        if (!normalized.IsValid) return new(false, null, AiStructuredRequestValidatorV1.InvalidCode);
+        Append(hash, normalized.NormalizedJson!);
         return new(true, Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant(), null);
     }
 
