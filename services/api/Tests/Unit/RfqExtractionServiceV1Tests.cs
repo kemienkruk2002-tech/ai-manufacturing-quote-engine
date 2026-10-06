@@ -312,6 +312,46 @@ public sealed class RfqExtractionServiceV1Tests
         public List<RfqExtractionExecutionWrite> Writes { get; } = [];
         public List<RfqExtractionAttemptWrite> AttemptWrites { get; } = [];
 
+        public Task<RfqExtractionAtomicPersistenceResult> SaveAtomicAsync(
+            RfqExtractionExecutionWrite execution,
+            RfqExtractionAttemptWrite attempt,
+            CancellationToken cancellationToken = default)
+        {
+            Writes.Add(execution);
+            AttemptWrites.Add(attempt);
+            var now = DateTimeOffset.Parse("2026-10-06T08:00:00Z");
+            var storedExecution = new StoredRfqExtractionExecution(
+                Guid.NewGuid(),
+                execution.TenantId,
+                execution.QuoteRequestId,
+                execution.ModelId,
+                execution.PromptVersion,
+                execution.SchemaVersion,
+                execution.RequestFingerprint,
+                execution.Disposition,
+                execution.Code,
+                now);
+            var attemptId = Guid.NewGuid();
+            var storedAttempt = new StoredRfqExtractionAttempt(
+                attemptId,
+                attempt.TenantId,
+                attempt.QuoteRequestId,
+                attempt.ModelId,
+                attempt.PromptVersion,
+                attempt.SchemaVersion,
+                attempt.RequestFingerprint,
+                attempt.Disposition,
+                attempt.Code,
+                attempt.SourceLineageJson,
+                attempt.RawProviderOutput,
+                now);
+            StoredRfqCanonicalDraft? draft = attempt.CanonicalDraftJson is null ? null
+                : new(attempt.TenantId, attempt.QuoteRequestId, attemptId, attempt.CanonicalDraftJson, 1, now, now);
+            return Task.FromResult(new RfqExtractionAtomicPersistenceResult(
+                storedExecution,
+                new RfqExtractionPersistenceResult(storedAttempt, draft)));
+        }
+
         public Task<StoredRfqExtractionExecution> SaveAsync(
             RfqExtractionExecutionWrite write,
             CancellationToken cancellationToken = default)
