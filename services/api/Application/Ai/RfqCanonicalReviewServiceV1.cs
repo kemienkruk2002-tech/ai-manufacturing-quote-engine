@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
 
 namespace QuoteEngine.Application.Ai;
