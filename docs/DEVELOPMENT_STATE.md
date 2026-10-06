@@ -261,10 +261,13 @@ Scope is limited to backend operations for explicit human review of the current 
 - No migration, pricing, margin, workflow transition, geometry, calculation engine, canonical calculation snapshot/hash/replay or frontend behavior was changed.
 
 ## CI state
-- Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` is **GREEN** in run `37446537854`: **678/678 unit + 229/229 integration = 907/907 PASS**.
-- Focused review removed a competing parallel review-store/migration implementation before this verified head. The PR now contains one review model only: current CanonicalRFQ draft + existing immutable `audit_events`.
+- Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` is **GREEN** in run `37446537854`: **907/907 PASS**.
+- Focused review removed a competing parallel review-store/migration implementation before that verified head. The PR now contains one review model only: current CanonicalRFQ draft + existing immutable `audit_events`.
 - Focused review also confirmed that no repository policy identifies which CanonicalRFQ fields are business-critical for RFQ lifecycle progression. B3.6 therefore reports all unresolved MISSING/CONFLICT facts as review blockers but does not claim that all are lifecycle-critical and never changes RFQ status. Actual progression policy remains blocked by B2.3.
-- Current head contains only plan/state documentation after the verified implementation and must also pass GitHub Actions before merge.
+- Documentation-only head `b1bdef5f6432fe2edf85e6397247e5078cdf7880` exposed one unrelated pre-existing flaky host-startup assertion in run `37446897897`: unit suite stayed **678/678 PASS**, while `Enabled_ai_with_negative_retry_delay_fails_startup_validation` received `ObjectDisposedException` from `WebApplicationFactory` instead of the options-validation text.
+- Fixed only that test by resolving `AiIntegrationOptions` directly through the registered `IOptions` validators; production runtime/configuration is unchanged.
+- Repaired head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`: **678/678 unit + 229/229 integration = 907/907 PASS**.
+- Current head contains only plan/state documentation after that verified repaired head and must also pass GitHub Actions before merge.
 
 ## Exact next task
 Inspect GitHub Actions for the exact current PR #23 head. If green, merge PR #23 and verify post-merge `main` CI. After B3.6 is fully merged and green, perform the required focused **B3 milestone audit** in this run, record findings and split follow-ups; do not start B4 or frontend in this run.
