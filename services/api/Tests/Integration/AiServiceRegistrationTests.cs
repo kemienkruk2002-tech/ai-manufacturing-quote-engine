@@ -47,8 +47,8 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
         var httpClient = factory.Services.GetRequiredService<IHttpClientFactory>()
             .CreateClient(AiHttpClientNames.OpenAiResponses);
         Assert.Equal(new Uri("https://api.openai.com/"), httpClient.BaseAddress);
-        Assert.Equal(new AuthenticationHeaderValue("Bearer", "integration-test-secret"),
-            httpClient.DefaultRequestHeaders.Authorization);
+        Assert.Equal("Bearer", httpClient.DefaultRequestHeaders.Authorization?.Scheme);
+        Assert.Equal("integration-test-secret", httpClient.DefaultRequestHeaders.Authorization?.Parameter);
     }
 
     [Fact]
@@ -60,7 +60,10 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
             ["Ai:BaseUrl"] = "https://api.openai.com/"
         });
 
-        var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        var error = Assert.ThrowsAny<Exception>(() =>
+        {
+            using var _ = factory.CreateClient();
+        });
 
         Assert.Contains("Ai:ApiKey is required when AI is enabled.", error.ToString(),
             StringComparison.Ordinal);
@@ -76,7 +79,10 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
             ["Ai:BaseUrl"] = "http://api.openai.invalid/"
         });
 
-        var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        var error = Assert.ThrowsAny<Exception>(() =>
+        {
+            using var _ = factory.CreateClient();
+        });
 
         Assert.Contains("Ai:BaseUrl must be an absolute HTTPS URL when AI is enabled.", error.ToString(),
             StringComparison.Ordinal);
@@ -91,7 +97,10 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
             ["Ai:RetryDelaysMs:0"] = "-1"
         });
 
-        var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        var error = Assert.ThrowsAny<Exception>(() =>
+        {
+            using var _ = factory.CreateClient();
+        });
 
         Assert.Contains("Ai:RetryDelaysMs values must be greater than or equal to zero.",
             error.ToString(), StringComparison.Ordinal);
