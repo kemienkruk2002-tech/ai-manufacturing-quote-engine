@@ -17,6 +17,25 @@ public sealed class RfqExtractorPromptV1Tests
     }
 
     [Fact]
+    public void Equivalent_input_json_compiles_identical_user_prompt()
+    {
+        var first = Request() with
+        {
+            NormalizedInputJson = """ { "b": 2, "a": { "y": [2, 1], "x": true } } """
+        };
+        var second = Request() with
+        {
+            NormalizedInputJson = """{"a":{"x":true,"y":[2,1]},"b":2}"""
+        };
+
+        var firstPrompt = RfqExtractorPromptV1.Compile(first).Prompt!;
+        var secondPrompt = RfqExtractorPromptV1.Compile(second).Prompt!;
+
+        Assert.Equal(firstPrompt.UserPrompt, secondPrompt.UserPrompt);
+        Assert.Contains("""{"a":{"x":true,"y":[2,1]},"b":2}""", firstPrompt.UserPrompt);
+    }
+
+    [Fact]
     public void Same_request_one_hundred_times_compiles_identical_prompts()
     {
         var results = Enumerable.Range(0, 100)
@@ -84,9 +103,10 @@ public sealed class RfqExtractorPromptV1Tests
         var request = Request();
         var userPrompt = RfqExtractorPromptV1.Compile(request).Prompt!.UserPrompt;
 
-        Assert.Equal($"INPUT_JSON:\n{request.NormalizedInputJson}\n\nReturn only JSON conforming to RFQ_EXTRACTOR/v1.",
+        var normalized = AiInputJsonNormalizerV1.Normalize(request.NormalizedInputJson).NormalizedJson!;
+        Assert.Equal($"INPUT_JSON:\n{normalized}\n\nReturn only JSON conforming to RFQ_EXTRACTOR/v1.",
             userPrompt);
-        Assert.Equal(1, userPrompt.Split(request.NormalizedInputJson, StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, userPrompt.Split(normalized, StringSplitOptions.None).Length - 1);
         Assert.EndsWith("Return only JSON conforming to RFQ_EXTRACTOR/v1.", userPrompt);
     }
 
