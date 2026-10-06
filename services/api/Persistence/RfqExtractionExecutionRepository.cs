@@ -12,6 +12,140 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
     public const string Action = "RFQ_AI_EXTRACTION_EXECUTION";
     public const string Source = "RfqExtractionServiceV1";
 
+    public async Task<RfqExtractionAtomicPersistenceResult> SaveAtomicAsync(
+        RfqExtractionExecutionWrite execution,
+        RfqExtractionAttemptWrite attempt,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateAudit(execution);
+        ValidateAttempt(attempt);
+        ValidateAtomicConsistency(execution, attempt);
+
+        var auditPayload = JsonSerializer.Serialize(new
+        {
+            request_fingerprint = execution.RequestFingerprint,
+            prompt_version = execution.PromptVersion,
+            schema_version = execution.SchemaVersion,
+            model_id = execution.ModelId,
+            disposition = execution.Disposition.ToString(),
+            code = execution.Code
+        });
+
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        Guid auditId;
+        DateTimeOffset auditCreatedAt;
+        await using (var auditCommand = new NpgsqlCommand("""
+            INSERT INTO audit_events(tenant_id,entity_type,entity_id,action,new_value,source)
+            SELECT q.tenant_id,'quote_requests',q.id,@action,CAST(@payload AS jsonb),@source
+            FROM quote_requests q
+            WHERE q.tenant_id=@tenant AND q.id=@rfq
+            RETURNING id,created_at
+            """, connection, transaction))
+        {
+            auditCommand.Parameters.AddWithValue("tenant", execution.TenantId);
+            auditCommand.Parameters.AddWithValue("rfq", execution.QuoteRequestId);
+            auditCommand.Parameters.AddWithValue("action", Action);
+            auditCommand.Parameters.AddWithValue("payload", auditPayload);
+            auditCommand.Parameters.AddWithValue("source", Source);
+            await using var reader = await auditCommand.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new DomainValidationException("RFQ_EXTRACTION_AUDIT_RFQ_NOT_FOUND",
+                    "The RFQ does not exist in the requested tenant.");
+            auditId = reader.GetGuid(0);
+            auditCreatedAt = ReadDateTimeOffset(reader, 1);
+        }
+
+        var attemptId = Guid.NewGuid();
+        DateTimeOffset attemptCreatedAt;
+        await using (var attemptCommand = new NpgsqlCommand("""
+            INSERT INTO rfq_extraction_attempts(
+                id,tenant_id,quote_request_id,request_fingerprint,model_id,prompt_version,schema_version,
+                disposition,result_code,source_lineage,raw_provider_output)
+            VALUES(
+                @id,@tenant,@rfq,@fingerprint,@model,@prompt,@schema,@disposition,@code,
+                CAST(@lineage AS jsonb),@raw)
+            RETURNING created_at
+            """, connection, transaction))
+        {
+            attemptCommand.Parameters.AddWithValue("id", attemptId);
+            attemptCommand.Parameters.AddWithValue("tenant", attempt.TenantId);
+            attemptCommand.Parameters.AddWithValue("rfq", attempt.QuoteRequestId);
+            attemptCommand.Parameters.AddWithValue("fingerprint", (object?)attempt.RequestFingerprint ?? DBNull.Value);
+            attemptCommand.Parameters.AddWithValue("model", attempt.ModelId);
+            attemptCommand.Parameters.AddWithValue("prompt", attempt.PromptVersion);
+            attemptCommand.Parameters.AddWithValue("schema", attempt.SchemaVersion);
+            attemptCommand.Parameters.AddWithValue("disposition", attempt.Disposition.ToString());
+            attemptCommand.Parameters.AddWithValue("code", (object?)attempt.Code ?? DBNull.Value);
+            attemptCommand.Parameters.AddWithValue("lineage", attempt.SourceLineageJson);
+            attemptCommand.Parameters.AddWithValue("raw", (object?)attempt.RawProviderOutput ?? DBNull.Value);
+            attemptCreatedAt = ToDateTimeOffset(
+                await attemptCommand.ExecuteScalarAsync(cancellationToken)
+                ?? throw new InvalidOperationException("Extraction attempt insert returned no created_at."));
+        }
+
+        StoredRfqCanonicalDraft? draft = null;
+        if (attempt.Disposition == AiExecutionDisposition.COMPLETED && attempt.CanonicalDraftJson is not null)
+        {
+            await using var draftCommand = new NpgsqlCommand("""
+                INSERT INTO rfq_canonical_drafts(
+                    tenant_id,quote_request_id,source_attempt_id,canonical_json,row_version)
+                VALUES (@tenant,@rfq,@attempt,CAST(@canonical AS jsonb),1)
+                ON CONFLICT (tenant_id,quote_request_id) DO UPDATE SET
+                    source_attempt_id=EXCLUDED.source_attempt_id,
+                    canonical_json=EXCLUDED.canonical_json,
+                    row_version=rfq_canonical_drafts.row_version+1,
+                    updated_at=now()
+                RETURNING source_attempt_id,canonical_json::text,row_version,created_at,updated_at
+                """, connection, transaction);
+            draftCommand.Parameters.AddWithValue("tenant", attempt.TenantId);
+            draftCommand.Parameters.AddWithValue("rfq", attempt.QuoteRequestId);
+            draftCommand.Parameters.AddWithValue("attempt", attemptId);
+            draftCommand.Parameters.AddWithValue("canonical", attempt.CanonicalDraftJson);
+            await using var reader = await draftCommand.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new InvalidOperationException("Canonical RFQ draft upsert returned no row.");
+            draft = new(
+                attempt.TenantId,
+                attempt.QuoteRequestId,
+                reader.GetGuid(0),
+                reader.GetString(1),
+                reader.GetInt64(2),
+                ReadDateTimeOffset(reader, 3),
+                ReadDateTimeOffset(reader, 4));
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        var storedExecution = new StoredRfqExtractionExecution(
+            auditId,
+            execution.TenantId,
+            execution.QuoteRequestId,
+            execution.ModelId,
+            execution.PromptVersion,
+            execution.SchemaVersion,
+            execution.RequestFingerprint,
+            execution.Disposition,
+            execution.Code,
+            auditCreatedAt);
+        var storedAttempt = new StoredRfqExtractionAttempt(
+            attemptId,
+            attempt.TenantId,
+            attempt.QuoteRequestId,
+            attempt.ModelId,
+            attempt.PromptVersion,
+            attempt.SchemaVersion,
+            attempt.RequestFingerprint,
+            attempt.Disposition,
+            attempt.Code,
+            attempt.SourceLineageJson,
+            attempt.RawProviderOutput,
+            attemptCreatedAt);
+
+        return new(storedExecution, new(storedAttempt, draft));
+    }
+
     public async Task<StoredRfqExtractionExecution> SaveAsync(
         RfqExtractionExecutionWrite write,
         CancellationToken cancellationToken = default)
@@ -151,6 +285,23 @@ public sealed class RfqExtractionExecutionRepository(NpgsqlDataSource dataSource
         if (!await reader.ReadAsync(cancellationToken)) return null;
         return new(tenantId, quoteRequestId, reader.GetGuid(0), reader.GetString(1), reader.GetInt64(2),
             ReadDateTimeOffset(reader, 3), ReadDateTimeOffset(reader, 4));
+    }
+
+    private static void ValidateAtomicConsistency(
+        RfqExtractionExecutionWrite execution,
+        RfqExtractionAttemptWrite attempt)
+    {
+        if (execution.TenantId != attempt.TenantId
+            || execution.QuoteRequestId != attempt.QuoteRequestId
+            || !StringComparer.Ordinal.Equals(execution.ModelId, attempt.ModelId)
+            || !StringComparer.Ordinal.Equals(execution.PromptVersion, attempt.PromptVersion)
+            || !StringComparer.Ordinal.Equals(execution.SchemaVersion, attempt.SchemaVersion)
+            || !StringComparer.Ordinal.Equals(execution.RequestFingerprint, attempt.RequestFingerprint)
+            || execution.Disposition != attempt.Disposition
+            || !StringComparer.Ordinal.Equals(execution.Code, attempt.Code))
+            throw new DomainValidationException(
+                "RFQ_EXTRACTION_ATOMIC_WRITE_MISMATCH",
+                "Execution audit and extraction attempt must describe the same extraction result.");
     }
 
     private static void ValidateAudit(RfqExtractionExecutionWrite write)
