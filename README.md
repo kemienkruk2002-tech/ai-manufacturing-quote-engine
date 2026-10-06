@@ -45,6 +45,23 @@ Ai__BaseUrl=https://api.openai.com/
 
 `Ai__ApiKey` nie należy do repozytorium ani logów; należy dostarczyć go przez zmienną środowiskową lub system sekretów. `Ai__RetryDelaysMs` jest opcjonalną tablicą opóźnień w milisekundach. Brak wartości oznacza brak ponowień — repo nie narzuca niewymaganej polityki retry. Przy `Ai__Enabled=true` konfiguracja jest walidowana przy starcie: wymagany jest sekret, absolutny adres HTTPS i nieujemne opóźnienia retry.
 
+### Polityka wykonania zewnętrznego AI
+
+Samo `Ai__Enabled=true` nie zezwala na wysyłkę danych. Warstwa B3.3 jest **default-deny** i wymaga jednocześnie:
+
+```text
+Ai__Policy__PermittedUseCases__0=<explicit use case>
+Ai__Policy__PermittedModels__0=<explicit model id>
+Ai__Policy__PermittedDocumentTypes__0=<explicit document type>
+Ai__Policy__MaxPayloadBytes=<explicit positive byte limit>
+```
+
+Każde wywołanie musi dodatkowo przekazać `allow_external_ai=true`. Puste allowlisty albo `MaxPayloadBytes=0` nie powodują błędu startu aplikacji — oznaczają brak zezwolenia na wykonanie zewnętrznego AI.
+
+Domyślna implementacja `IAiInputRedactor` blokuje wykonanie kodem `AI_REDACTION_NOT_CONFIGURED`. Produkcyjne wdrożenie musi jawnie podmienić ją na zatwierdzoną implementację redakcji; repozytorium nie zgaduje reguł PII/sekretów ani nie przepuszcza danych bez redakcji.
+
+Każde odrzucenie polityki, redakcji lub providera kończy się `REVIEW_MANUAL`; nie ma automatycznego fallbacku tworzącego dane zastępcze.
+
 ## Docker / Linux / CI
 
 ```sh
