@@ -57,7 +57,7 @@ public static class AiServiceRegistration
         {
             var options = provider.GetRequiredService<IOptions<AiIntegrationOptions>>().Value;
             var delays = options.RetryDelaysMs
-                .Select(TimeSpan.FromMilliseconds)
+                .Select(delay => TimeSpan.FromMilliseconds(delay))
                 .ToArray();
             return new RetryingAiStructuredProviderV1(
                 provider.GetRequiredService<OpenAiResponsesProviderV1>(),
