@@ -1,6 +1,6 @@
 # B3 AI RFQ extraction audit — 2026-10-06
 
-Status: AUDIT_PENDING_CI
+Status: DONE_PR_GREEN
 
 Scope: B3.1-B3.6 only. This audit does not change pricing, RFQ workflow policy, deterministic calculation engines, canonical calculation snapshots/hashes/replay, geometry, or frontend behavior.
 
@@ -147,6 +147,10 @@ This is documentation/contract drift, not a runtime authorization bypass. Add me
 `review_source` and `reason` require non-empty values but have no application-specific maximum length. ASP.NET/server limits still apply, but the B3 contract does not define bounded field lengths.
 
 Do not invent product/security limits. Define approved limits before tightening the contract.
+
+## CI evidence
+
+Audit implementation head `355fc71d74994651946c186be9af7cc43f41e1f5` passed GitHub Actions run `37448282017`: **678/678 unit + 230/230 integration = 908/908 PASS**. The added concurrency stress test passed on real PostgreSQL.
 
 ## Audit conclusion
 
