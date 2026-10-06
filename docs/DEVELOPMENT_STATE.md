@@ -188,7 +188,8 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 
 ## CI state
 - B3.4 implementation is published on `auto/b3-4-rfq-extraction-service`.
-- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+- Verified PR #20 implementation head `cf8b2f9ffe85a17be7c7d8914c41dc71cea7c5a7` is **GREEN** in run `37435066563`: **671/671 unit + 215/215 integration = 886/886 PASS**.
+- Current head contains only plan/state documentation after that verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Open/inspect the B3.4 PR CI. If it fails, fix only the concrete failure. If green, record the exact green head in plan/state, merge only that verified head, and verify post-merge `main` CI. Do not start B3.5 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #20 head. If green, merge PR #20 and verify post-merge `main` CI. On a later run, start exactly **B3.5 Persist CanonicalRFQ draft** from verified main. Do not start B3.5 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
