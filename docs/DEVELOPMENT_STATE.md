@@ -271,3 +271,16 @@ Scope is limited to backend operations for explicit human review of the current 
 
 ## Exact next task
 Inspect GitHub Actions for the exact current PR #23 head. If green, merge PR #23 and verify post-merge `main` CI. After B3.6 is fully merged and green, perform the required focused **B3 milestone audit** in this run, record findings and split follow-ups; do not start B4 or frontend in this run.
+
+
+### B3.H1 Atomic extraction persistence — IN_PROGRESS
+Branch: `auto/b3-h1-atomic-extraction-persistence`.
+
+- Verified current main `4de58b07c0ae35f8fbd502b68f898cad6533060f` and green run `37456965868`.
+- Read B3 audit `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
+- Selected exactly B3.H1 as the smallest unblocked READY follow-up.
+- Scope: make durable extraction execution audit + immutable attempt + optional current-draft update all-or-nothing in one PostgreSQL transaction.
+- Do not start B3.H2/H3/H4, B4 or frontend in this run.
+
+## Exact next task
+Refactor the extraction persistence boundary to one atomic repository operation, add forced-failure/all-or-nothing tests, publish PR, and require green GitHub Actions.
