@@ -203,7 +203,7 @@ Implemented in PR #21. Repaired implementation head `afd561f146df0e81124c3883286
 - every correction records actor/source/reason;
 - critical unresolved CONFLICT/MISSING blocks progression.
 
-Implemented in PR #23. Verified implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`: **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
+Implemented in PR #23. Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`; repaired final runtime/test head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`: **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
 
 ### B3 audit
 Security/privacy audit, hallucination/fallback audit, reproducibility audit, load/idempotency tests and CI.
