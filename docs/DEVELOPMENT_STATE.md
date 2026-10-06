@@ -104,7 +104,7 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 - Post-merge main run `37428227503` passed **641/641 unit + 206/206 integration = 847/847 PASS**.
 - State-sync main commit `727c5e46edea669ac13edbb17f4fd2ddd165f252` passed run `37428385748`; this final documentation-only update requires its own CI verification on the next run.
 
-### B3.2 Deterministic AI input normalization — CI_PENDING
+### B3.2 Deterministic AI input normalization — DONE_PR_GREEN
 Branch: `auto/b3-2-ai-input-normalization`.
 
 Scope: add one deterministic normalization boundary for supported JSON before AI request fingerprinting, prove equivalent supported object inputs are byte-identical/fingerprint-identical, preserve array order and value types, and do not change CanonicalRFQ v1 or provider output schema.
@@ -124,7 +124,8 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 
 ## CI state
 - B3.2 implementation is published on `auto/b3-2-ai-input-normalization`.
-- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+- Verified PR #18 head `b0f631d9bd375e62e58c42dcc61272537c279f99` is **GREEN** in run `37429166917`: **652/652 unit + 206/206 integration = 858/858 PASS**.
+- Current head contains only status documentation after that verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Open/inspect the B3.2 PR CI. If it fails, fix only the concrete failure. If green, record the exact green head in plan/state, merge only that verified head, and verify post-merge `main` CI. Do not start B3.3 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #18 head. If green, merge PR #18 and verify post-merge `main` CI. On a later run, start exactly **B3.3 AI execution policy** from verified main. Do not start B3.3 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
