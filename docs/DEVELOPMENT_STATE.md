@@ -274,7 +274,7 @@ Scope is limited to backend operations for explicit human review of the current 
 - PR #23 merged as `1c217030f2c173128d65235281256b56d8ecbb5e`.
 - Post-merge main run `37447453645`: **GREEN**, **678/678 unit + 229/229 integration = 907/907 PASS**.
 
-### B3 milestone audit — AUDIT_PENDING_CI
+### B3 milestone audit — DONE_PR_GREEN
 Audit file: `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
 
 Findings:
@@ -290,8 +290,9 @@ Findings:
 - review source/reason application-specific max lengths are undefined (P2 policy blocker).
 
 ## CI state
-- Audit branch `audit/b3-ai-rfq` contains documentation plus a concurrency stress test only.
-- Status: **AUDIT_PENDING_CI**. Do not mark B3 audit DONE until the audit branch passes GitHub Actions.
+- Audit PR #24 implementation head `355fc71d74994651946c186be9af7cc43f41e1f5` is **GREEN** in run `37448282017`: **678/678 unit + 230/230 integration = 908/908 PASS**.
+- The added 12-way same-version review concurrency stress passed on real PostgreSQL.
+- Current head contains only audit/plan/state status documentation after that verified audit implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Publish/verify the B3 audit PR. If CI fails, fix only the concrete audit/test failure. If green, merge the audit PR and verify post-merge `main`. On the next autonomous run start exactly **B3.H1 Stale extraction vs human-reviewed draft CAS**. Do not start B4 or frontend in this run.
+Inspect GitHub Actions for the exact current PR #24 head. If green, merge PR #24 and verify post-merge `main` CI. On the next autonomous run start exactly **B3.H1 Stale extraction vs human-reviewed draft CAS**. Do not start B4 or frontend in this run.
