@@ -4,8 +4,8 @@ Updated: 2026-10-06
 Mode: autonomous backend-first development
 
 ## Baseline
-- Current verified main CI after B2.H2: **641 unit + 200 integration = 841/841 passed**.
-- B2.H2 merge: `530383cb1b9ae9f98e5a13f2b22757c6a6852ac5`; post-merge run `37426370315` succeeded.
+- Current verified main CI after B3.3: **664 unit + 210 integration = 874/874 passed**.
+- B3.3 merge: `b6ad030f5c4dc2f909bf809c14d870a4180b3627`; post-merge run `37432937882` succeeded.
 - Frozen deterministic engines/snapshots/hashes/replay and existing migration history remain unchanged.
 - B2 focused audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
 
@@ -165,7 +165,8 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 ## CI state
 - PR #19 final head `280e39be406b891855df583ac7c12f84d1a5cf8c`: **GREEN**, run `37432765264`, **874/874 PASS**.
 - Merge `b6ad030f5c4dc2f909bf809c14d870a4180b3627`: post-merge `main` run `37432937882` **GREEN**, **664/664 unit + 210/210 integration = 874/874 PASS**.
-- This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
+- State-sync main commit `3ed6c042d779c0635e4d94ef518ccb3d39b7dff7` passed run `37433105161`: **664/664 unit + 210/210 integration = 874/874 PASS**.
+- This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
 ## Exact next task
 On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.4 RFQ extraction service** from verified main: build normalized extraction input only from explicitly selected RFQ sources, execute through `AiPolicyExecutorV1`, and persist request fingerprint plus prompt/schema/model versions and result status without writing final cost/time/price fields. Production external AI remains default-deny until deployment supplies explicit allowlists, a positive payload limit and an approved `IAiInputRedactor`. Do not start B3.5 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
