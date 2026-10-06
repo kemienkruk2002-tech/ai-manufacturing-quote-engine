@@ -1,10 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Security.Cryptography;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Routing;
 using Npgsql;
 using QuoteEngine.Application;
+using QuoteEngine.Application.Ai;
 using QuoteEngine.Api;
 using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
@@ -32,7 +34,7 @@ builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddSingleton(sp => NpgsqlDataSource.Create(sp.GetRequiredService<IConfiguration>().GetConnectionString("QuoteEngine") ?? throw new InvalidOperationException("Set ConnectionStrings__QuoteEngine to the PostgreSQL connection string.")));
 builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddScoped<DatabaseMigrator>(); builder.Services.AddScoped<SnapshotInputRepository>();
 builder.Services.AddScoped<ISnapshotInputRepository>(sp => sp.GetRequiredService<SnapshotInputRepository>()); builder.Services.AddScoped<IPartRepository>(sp => sp.GetRequiredService<SnapshotInputRepository>()); builder.Services.AddScoped<IRouteRepository>(sp => sp.GetRequiredService<SnapshotInputRepository>()); builder.Services.AddScoped<IMachineRateRepository>(sp => sp.GetRequiredService<SnapshotInputRepository>());
-builder.Services.AddScoped<IQuoteSnapshotRepository, QuoteSnapshotRepository>(); builder.Services.AddScoped<ICalculationRunRepository, CalculationRunRepository>(); builder.Services.AddScoped<IRfqFileRepository, RfqFileRepository>(); builder.Services.AddScoped<IRfqFileManifestRepository, RfqFileManifestRepository>(); builder.Services.AddScoped<IRfqExtractionExecutionRepository, RfqExtractionExecutionRepository>(); builder.Services.AddScoped<ICustomerRepository, CustomerRepository>(); builder.Services.AddScoped<IQuoteRequestRepository, QuoteRequestRepository>(); builder.Services.AddScoped<CalculationService>();
+builder.Services.AddScoped<IQuoteSnapshotRepository, QuoteSnapshotRepository>(); builder.Services.AddScoped<ICalculationRunRepository, CalculationRunRepository>(); builder.Services.AddScoped<IRfqFileRepository, RfqFileRepository>(); builder.Services.AddScoped<IRfqFileManifestRepository, RfqFileManifestRepository>(); builder.Services.AddScoped<IRfqExtractionExecutionRepository, RfqExtractionExecutionRepository>(); builder.Services.AddScoped<IRfqCanonicalReviewRepository, RfqCanonicalReviewRepository>(); builder.Services.AddScoped<RfqCanonicalReviewServiceV1>(); builder.Services.AddScoped<ICustomerRepository, CustomerRepository>(); builder.Services.AddScoped<IQuoteRequestRepository, QuoteRequestRepository>(); builder.Services.AddScoped<CalculationService>();
 var app = builder.Build();
 var migrate = args.Contains("--migrate", StringComparer.Ordinal); var seed = args.Contains("--seed-golden", StringComparer.Ordinal); var calculate = args.Contains("--calculate-golden", StringComparer.Ordinal);
 if ((seed || calculate) && !app.Environment.IsDevelopment()) throw new InvalidOperationException("Golden seed and calculation commands are enabled only in Development.");
@@ -84,11 +86,72 @@ tenantApi.MapGet("/rfqs/{quoteRequestId:guid}/files", async (Guid tenantId, Guid
     var trustedTenantId = tenantContext.RequireRouteTenant(tenantId); if (!await files.RequestExistsAsync(trustedTenantId, quoteRequestId, token)) return Results.NotFound(); return Results.Ok(await manifest.ListAsync(trustedTenantId, quoteRequestId, token));
 }).WithName("ListRfqFileManifest");
 tenantApi.MapGet("/rfqs/{quoteRequestId:guid}/files/{logicalKey}/versions/{versionNo:int}", async (Guid tenantId, Guid quoteRequestId, string logicalKey, int versionNo, ITenantContext tenantContext, IRfqFileRepository repository, IConfiguration configuration, CancellationToken token) => { var trustedTenantId = tenantContext.RequireRouteTenant(tenantId); if (!TryReadRfqFilePolicy(configuration, out var policy)) return RfqFileProblem(503, "RFQ_FILE_POLICY_NOT_CONFIGURED", "RFQ file policy is not configured."); var version = await repository.FindVersionAsync(trustedTenantId, quoteRequestId, logicalKey, versionNo, token); if (version is null) return Results.NotFound(); IFileObjectStore objectStore = new LocalFileObjectStore(policy.StorageRoot); var content = await objectStore.OpenReadAsync(version.Sha256, token); if (content is null) return RfqFileProblem(500, "RFQ_FILE_OBJECT_MISSING", "RFQ file metadata exists but its object is missing."); return Results.File(content, version.MimeType ?? "application/octet-stream", version.OriginalFileName); }).WithName("DownloadRfqFileVersion").WithMetadata(ApiOpenApiDocumentV1.RfqFileDownload);
+tenantApi.MapGet("/rfqs/{quoteRequestId:guid}/canonical-draft", async (Guid tenantId, Guid quoteRequestId, ITenantContext tenantContext, IRfqExtractionExecutionRepository repository, CancellationToken token) =>
+{
+    var trustedTenantId = tenantContext.RequireRouteTenant(tenantId);
+    return await repository.FindCurrentDraftAsync(trustedTenantId, quoteRequestId, token) is { } draft
+        ? Results.Ok(draft)
+        : Results.NotFound();
+}).WithName("GetRfqCanonicalDraft");
+tenantApi.MapPost("/rfqs/{quoteRequestId:guid}/canonical-review", async (Guid tenantId, Guid quoteRequestId, ReviewCanonicalRfqFieldRequest input, HttpContext http, ITenantContext tenantContext, RfqCanonicalReviewServiceV1 service, CancellationToken token) =>
+{
+    var trustedTenantId = tenantContext.RequireRouteTenant(tenantId);
+    if (!TryReadReviewActor(http, out var actor))
+        return Results.Problem(statusCode: 403, title: "Exactly one authenticated review actor is required.",
+            extensions: new Dictionary<string, object?> { ["code"] = RfqCanonicalReviewServiceV1.ActorRequiredCode });
+
+    var result = await service.ReviewAsync(new(
+        trustedTenantId,
+        quoteRequestId,
+        input.FieldPath,
+        input.Decision,
+        input.CorrectedFact,
+        input.ExpectedRowVersion,
+        actor,
+        input.Source,
+        input.Reason,
+        http.TraceIdentifier), token);
+
+    return result.Status switch
+    {
+        RfqCanonicalReviewApplyStatus.UPDATED => Results.Ok(result),
+        RfqCanonicalReviewApplyStatus.DRAFT_NOT_FOUND => Results.NotFound(),
+        RfqCanonicalReviewApplyStatus.VERSION_CONFLICT => Results.Problem(
+            statusCode: 409,
+            title: "Canonical RFQ draft was modified by another reviewer.",
+            extensions: new Dictionary<string, object?> { ["code"] = "RFQ_CANONICAL_REVIEW_VERSION_CONFLICT" }),
+        _ => throw new InvalidOperationException("Unsupported canonical RFQ review result.")
+    };
+}).WithName("ReviewRfqCanonicalField");
+tenantApi.MapGet("/rfqs/{quoteRequestId:guid}/canonical-review/readiness", async (Guid tenantId, Guid quoteRequestId, ITenantContext tenantContext, RfqCanonicalReviewServiceV1 service, CancellationToken token) =>
+{
+    var trustedTenantId = tenantContext.RequireRouteTenant(tenantId);
+    return await service.GetReadinessAsync(trustedTenantId, quoteRequestId, token) is { } readiness
+        ? Results.Ok(readiness)
+        : Results.NotFound();
+}).WithName("GetRfqCanonicalReviewReadiness");
+tenantApi.MapGet("/rfqs/{quoteRequestId:guid}/canonical-review/history", async (Guid tenantId, Guid quoteRequestId, ITenantContext tenantContext, IRfqCanonicalReviewRepository repository, CancellationToken token) =>
+{
+    var trustedTenantId = tenantContext.RequireRouteTenant(tenantId);
+    return Results.Ok(await repository.ListAsync(trustedTenantId, quoteRequestId, token));
+}).WithName("ListRfqCanonicalReviewHistory");
 app.MapGet(ApiOpenApiDocumentV1.DocumentPath, (EndpointDataSource endpoints) => Results.Json(ApiOpenApiDocumentV1.Build(endpoints), contentType: ApiOpenApiDocumentV1.MediaType)).WithName("GetOpenApiV1"); app.MapGet("/health", () => Results.Ok(new { status = "ok" })).WithName("GetHealth").WithMetadata(ApiOpenApiDocumentV1.Health); await app.RunAsync();
+static bool TryReadReviewActor(HttpContext http, out string actor)
+{
+    actor = string.Empty;
+    var values = http.User.FindAll(ClaimTypes.NameIdentifier)
+        .Select(claim => claim.Value)
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .ToArray();
+    if (values.Length != 1) return false;
+    actor = values[0];
+    return true;
+}
 static bool TryReadRfqFilePolicy(IConfiguration configuration, out RfqFilePolicy policy) { policy = null!; var storageRoot = configuration["RfqFiles:StorageRoot"]; if (string.IsNullOrWhiteSpace(storageRoot) || !long.TryParse(configuration["RfqFiles:MaxUploadBytes"], out var maxUploadBytes) || maxUploadBytes <= 0) return false; var allowed = configuration.GetSection("RfqFiles:AllowedMimeTypes").GetChildren().Select(item => item.Value).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!).ToHashSet(StringComparer.OrdinalIgnoreCase); if (allowed.Count == 0) return false; try { policy = new(Path.GetFullPath(storageRoot), maxUploadBytes, allowed); return true; } catch (Exception error) when (error is ArgumentException or NotSupportedException or PathTooLongException) { return false; } }
 static IResult RfqFileProblem(int statusCode, string code, string title) => Results.Problem(statusCode: statusCode, title: title, extensions: new Dictionary<string, object?> { ["code"] = code });
 public sealed record CreateRfqRequest(Guid? Id, Guid? CustomerId, Guid? PartRevisionId, int? RequestedQuantity, QuoteStatus? Status, string? Currency, string? ExternalRfqNo, DateOnly? RequestedDueDate);
 public sealed record UpdateRfqDraftRequest(Guid? CustomerId, Guid? PartRevisionId, int? RequestedQuantity, string? Currency, string? ExternalRfqNo, DateOnly? RequestedDueDate, long ExpectedRowVersion);
+public sealed record ReviewCanonicalRfqFieldRequest(string FieldPath, RfqCanonicalReviewDecision Decision, JsonElement? CorrectedFact, long ExpectedRowVersion, string Source, string Reason);
 public static class GoldenCase
 {
     public static readonly SnapshotRequest Request = new(Guid.Parse("00000000-0000-0000-0000-000000000001"), Guid.Parse("90000000-0000-0000-0000-000000000001"), "W07044", "1", "rates-v1", new RuleVersions(TimeEngineV1.Version, StockEngineV1.Version, CanonicalSnapshotSerializer.SchemaVersion));

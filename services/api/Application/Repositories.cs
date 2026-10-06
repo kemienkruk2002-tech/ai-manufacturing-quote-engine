@@ -1,3 +1,4 @@
+using System.Text.Json;
 using QuoteEngine.Application.Ai;
 using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Customers;
@@ -40,6 +41,56 @@ public sealed record StoredRfqCanonicalDraft(Guid TenantId, Guid QuoteRequestId,
     string CanonicalJson, long RowVersion, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 public sealed record RfqExtractionPersistenceResult(StoredRfqExtractionAttempt Attempt,
     StoredRfqCanonicalDraft? CurrentDraft);
+
+public enum RfqCanonicalReviewDecision
+{
+    CONFIRM,
+    REJECT,
+    CORRECT
+}
+
+public sealed record RfqCanonicalReviewWrite(
+    Guid TenantId,
+    Guid QuoteRequestId,
+    string FieldPath,
+    RfqCanonicalReviewDecision Decision,
+    string CanonicalJson,
+    string BeforeFactJson,
+    string AfterFactJson,
+    long ExpectedRowVersion,
+    string Actor,
+    string ReviewSource,
+    string Reason,
+    string? CorrelationId);
+
+public enum RfqCanonicalReviewApplyStatus
+{
+    UPDATED,
+    DRAFT_NOT_FOUND,
+    VERSION_CONFLICT
+}
+
+public sealed record StoredRfqCanonicalReviewEvent(
+    Guid AuditEventId,
+    Guid TenantId,
+    Guid QuoteRequestId,
+    Guid SourceAttemptId,
+    string FieldPath,
+    RfqCanonicalReviewDecision Decision,
+    string Actor,
+    string ReviewSource,
+    string Reason,
+    string BeforeFactJson,
+    string AfterFactJson,
+    long BeforeRowVersion,
+    long AfterRowVersion,
+    string? CorrelationId,
+    DateTimeOffset CreatedAt);
+
+public sealed record RfqCanonicalReviewApplyResult(
+    RfqCanonicalReviewApplyStatus Status,
+    StoredRfqCanonicalDraft? Draft,
+    StoredRfqCanonicalReviewEvent? ReviewEvent);
 
 public interface ICustomerRepository
 {
@@ -92,6 +143,13 @@ public interface IRfqExtractionExecutionRepository
     Task<IReadOnlyList<StoredRfqExtractionAttempt>> ListAttemptsAsync(Guid tenantId, Guid quoteRequestId,
         CancellationToken cancellationToken = default);
     Task<StoredRfqCanonicalDraft?> FindCurrentDraftAsync(Guid tenantId, Guid quoteRequestId,
+        CancellationToken cancellationToken = default);
+}
+public interface IRfqCanonicalReviewRepository
+{
+    Task<RfqCanonicalReviewApplyResult> ApplyAsync(RfqCanonicalReviewWrite write,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StoredRfqCanonicalReviewEvent>> ListAsync(Guid tenantId, Guid quoteRequestId,
         CancellationToken cancellationToken = default);
 }
 public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
