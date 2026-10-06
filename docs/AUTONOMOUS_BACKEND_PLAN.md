@@ -198,15 +198,56 @@ Implemented in PR #20. Final PR head `0f8e9752864ccc0244c055518e460bf727a46457` 
 
 Implemented in PR #21. Repaired implementation head `afd561f146df0e81124c38832860d8a54eb6116e` passed run `37441176622`; final PR head `96097df9ad34d25bcb616e319443ed1067f8e6c7` passed run `37441377856`; merge `7fddfcf4c3936b12f8d3255a3b27520cb7852552`; post-merge main run `37441538770` passed **674 unit + 222 integration = 896/896 PASS**. Migration 010 adds immutable, tenant/RFQ-scoped extraction attempts and a separate current CanonicalRFQ draft. Raw provider output is retained separately from validated draft JSON; source lineage is persisted; arbitrary JSON cannot bypass the existing CanonicalRFQ v1 output guard; draft-to-attempt linkage is constrained to the same tenant and RFQ.
 
-### B3.6 Review/confirmation backend — DONE_PR_GREEN
+### B3.6 Review/confirmation backend — DONE
 - confirm/reject/correct extracted fields;
 - every correction records actor/source/reason;
 - critical unresolved CONFLICT/MISSING blocks progression.
 
-Implemented in PR #23. Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`; repaired final runtime/test head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`: **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
+Implemented in PR #23. Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`; repaired runtime/test head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`; final PR head `d06c753877fb592d240776390839adb4828923f6` passed run `37447285508`; merge `1c217030f2c173128d65235281256b56d8ecbb5e`; post-merge main run `37447453645` passed **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
 
-### B3 audit
-Security/privacy audit, hallucination/fallback audit, reproducibility audit, load/idempotency tests and CI.
+### B3 audit — AUDIT_PENDING_CI
+Audit: `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
+
+Security/privacy, hallucination/fallback, reproducibility, concurrency/load and idempotency behavior were reviewed after B3.6 merged green. Audit branch adds a PostgreSQL stress test requiring exactly one winner from 12 concurrent same-version human reviews.
+
+The audit found no hallucination/fallback P0, but B3 is not yet production end-to-end. Hardening tasks below run before B4 runtime work.
+
+### B3.H1 Stale extraction vs human-reviewed draft CAS — READY
+P1 data-integrity finding. A completed extraction can currently replace a CanonicalRFQ draft that a human changed after extraction started.
+
+- capture current draft version/state at extraction start;
+- always persist immutable extraction attempt;
+- publish completed CanonicalRFQ to current draft only if the observed draft version/state is still current;
+- stale extraction publication must not overwrite human review;
+- concurrent tests.
+
+### B3.H2 Tenant extraction trigger API — READY after H1
+`RfqExtractionServiceV1` is registered but no tenant-scoped production endpoint invokes it.
+
+- authenticated tenant route;
+- explicit model ID;
+- explicit per-call `allow_external_ai`;
+- exact source selections only;
+- no implicit latest-file policy;
+- ProblemDetails and authorization tests.
+
+### B3.H3 Production source materializer — BLOCKED_BY_B4_SECURITY
+Default Host materializer remains fail-closed. Do not parse untrusted customer PDF/STEP/archive bytes before B4 content identification, archive/malware policy and hardened object-store reads are available.
+
+### B3.H4 External AI deployment/redaction/retention — BLOCKED_DEPLOYMENT_POLICY
+Requires deployment-approved allowlists, payload limit, redaction/PII rules, consent/legal basis where applicable, and retention posture (default abuse monitoring vs approved MAM/ZDR). Do not guess these values.
+
+### B3.H5 Extraction fingerprint idempotency semantics — BLOCKED_PRODUCT_POLICY
+Fingerprint is reproducible but not an idempotency key. Decide whether identical requests deduplicate, always rerun, or require an explicit rerun/force flag before implementing single-flight behavior.
+
+### B3.H6 Raw provider/customer-content retention — BLOCKED_RETENTION_POLICY
+Immutable raw provider output currently has no expiry/purge policy. Define retention/legal-hold/deletion semantics before changing immutable history.
+
+### B3.H7 B3 OpenAPI coverage — P2 READY
+Custom OpenAPI metadata does not yet include current-draft/review routes. Add metadata/tests after P1 hardening.
+
+### B3.H8 Review free-text bounds — P2 SECURITY_POLICY_BLOCKER
+Review source/reason are non-empty but have no application-specific maximum lengths. Define approved limits before tightening the contract.
 
 ## Milestone B4 — RFQ file security
 
