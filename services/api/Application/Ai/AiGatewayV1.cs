@@ -47,7 +47,7 @@ public sealed record AiProviderResult
 
 public sealed record AiGatewayResult(AiOutputGuardStatus Status, string? Code, string? Fingerprint,
     CanonicalRfqV1? Output, AiProviderFailureKind? ProviderFailureKind, string? ProviderFailureCode,
-    IReadOnlyList<CanonicalRfqValidationError> ValidationErrors)
+    IReadOnlyList<CanonicalRfqValidationError> ValidationErrors, string? RawProviderJson = null)
 {
     public bool IsPass => Status == AiOutputGuardStatus.PASS;
 }
@@ -76,7 +76,7 @@ public sealed class AiGatewayV1(IAiStructuredProvider provider)
 
         var guard = RfqExtractorOutputGuardV1.Evaluate(providerResult.RawJson);
         return new(guard.Status, guard.Code, fingerprint.Fingerprint, guard.Output, null, null,
-            guard.ValidationErrors);
+            guard.ValidationErrors, providerResult.RawJson);
     }
 
     private static AiGatewayResult Blocked(string code, string? fingerprint = null) =>
