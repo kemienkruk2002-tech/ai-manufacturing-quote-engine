@@ -135,7 +135,7 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 - State-sync main commit `2378fad41a59079c295b7ad4aaea20ac233609cc`: run `37429665374` **GREEN**, **652/652 unit + 206/206 integration = 858/858 PASS**.
 - This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
-### B3.3 AI execution policy — DONE_PR_GREEN
+### B3.3 AI execution policy — DONE
 Branch: `auto/b3-3-ai-execution-policy`.
 
 Scope: add a default-deny external-AI policy boundary around the existing gateway. The policy will require an explicit per-execution `allow_external_ai` flag plus configured allowlists for use case/model/document type and an explicitly configured positive payload limit. It will expose a redaction seam and deterministic REVIEW/MANUAL outcomes for policy/redaction/provider failures. No allowlist entries, payload limit, redaction rules, endpoint, persistence or business workflow will be invented.
@@ -158,7 +158,14 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 ## CI state
 - B3.3 implementation is published on `auto/b3-3-ai-execution-policy`.
 - Verified PR #19 implementation head `5b7f8145f55d0bb5f9ee052ff724191dbe959328` is **GREEN** in run `37432555854`: **664/664 unit + 210/210 integration = 874/874 PASS**.
-- Current head contains only plan/state status documentation after that verified implementation and must also pass GitHub Actions before merge.
+- Final PR #19 head `280e39be406b891855df583ac7c12f84d1a5cf8c` passed run `37432765264`: **874/874 PASS**.
+- PR #19 merged as `b6ad030f5c4dc2f909bf809c14d870a4180b3627`.
+- Post-merge main run `37432937882` passed **664/664 unit + 210/210 integration = 874/874 PASS**.
+
+## CI state
+- PR #19 final head `280e39be406b891855df583ac7c12f84d1a5cf8c`: **GREEN**, run `37432765264`, **874/874 PASS**.
+- Merge `b6ad030f5c4dc2f909bf809c14d870a4180b3627`: post-merge `main` run `37432937882` **GREEN**, **664/664 unit + 210/210 integration = 874/874 PASS**.
+- This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
 
 ## Exact next task
-Inspect GitHub Actions for the exact current PR #19 head. If green, merge PR #19 and verify post-merge `main` CI. On a later run, start exactly **B3.4 RFQ extraction service** from verified main. Production external AI remains default-deny until deployment supplies explicit allowlists, a positive payload limit and an approved `IAiInputRedactor`. Do not start B3.4 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.4 RFQ extraction service** from verified main: build normalized extraction input only from explicitly selected RFQ sources, execute through `AiPolicyExecutorV1`, and persist request fingerprint plus prompt/schema/model versions and result status without writing final cost/time/price fields. Production external AI remains default-deny until deployment supplies explicit allowlists, a positive payload limit and an approved `IAiInputRedactor`. Do not start B3.5 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
