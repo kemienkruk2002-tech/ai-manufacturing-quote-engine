@@ -1,3 +1,4 @@
+using Npgsql;
 using System.Text.Json;
 using QuoteEngine.Application;
 using QuoteEngine.Application.Ai;
