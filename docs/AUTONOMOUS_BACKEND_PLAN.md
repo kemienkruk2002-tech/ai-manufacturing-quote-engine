@@ -210,12 +210,12 @@ Audit: `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
 
 B3.1-B3.6 are functionally complete and green. The focused audit produced the following technical hardening tasks before B4:
 
-### B3.H1 Atomic extraction persistence — DONE_PR_GREEN
+### B3.H1 Atomic extraction persistence — DONE
 - consolidate durable execution audit + immutable attempt + optional current-draft update into one PostgreSQL transaction;
 - forced failure must prove all-or-nothing persistence;
 - preserve tenant/RFQ scoping and existing immutable history.
 
-Implemented in PR #26. Verified implementation head `893ea9881b92f2820556447da93b0d1ade2aa361` passed run `37459976159`: **678 unit + 232 integration = 910/910 PASS**. `RfqExtractionServiceV1` now uses one atomic repository write for execution audit + immutable attempt + optional current draft. Forced PostgreSQL draft-write failure proves rollback of earlier audit/attempt inserts. No migration or business/provider policy changed.
+Implemented in PR #26. Verified implementation head `893ea9881b92f2820556447da93b0d1ade2aa361` passed run `37459976159`; final PR head `3c650425a9fa859c9d1326da8e421680140d6ee6` passed run `37460159157`; merge `403a55f4b3b5825e568d1bfd7437f94807354790`; post-merge main run `37460318985` passed **678 unit + 232 integration = 910/910 PASS**. `RfqExtractionServiceV1` now uses one atomic repository write for execution audit + immutable attempt + optional current draft. Forced PostgreSQL draft-write failure proves rollback of earlier audit/attempt inserts. No migration or business/provider policy changed.
 
 ### B3.H2 Extraction retry/idempotency contract — READY after B3.H1
 - versioned deterministic idempotency boundary for retried/concurrent identical extraction requests;
