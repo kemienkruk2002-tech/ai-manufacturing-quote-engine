@@ -75,7 +75,7 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 ## Current milestone
 **B3 — AI RFQ extraction wired end-to-end**
 
-### B3.1 AI configuration + DI — DONE_PR_GREEN
+### B3.1 AI configuration + DI — DONE
 Branch: `auto/b3-1-ai-config-di`.
 
 Scope: register the existing OpenAI Responses provider, retry wrapper and AiGatewayV1 behind validated server-side configuration; configure HttpClient through IHttpClientFactory; require API credentials only when AI is enabled; allow AI to remain disabled without constructing provider services. No extraction endpoint or B3.2 normalization work is included.
@@ -102,4 +102,4 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 - Current head contains status documentation after that verified implementation and must also pass GitHub Actions before merge.
 
 ## Exact next task
-Inspect GitHub Actions for the exact current PR #17 head. If green, merge PR #17 and verify post-merge `main` CI. On a later run, start exactly **B3.2 deterministic AI input normalization** from verified main. Do not start B3.2 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+On the next autonomous run, first verify CI for the final state-only main commit. If green, start exactly **B3.2 deterministic AI input normalization** from verified main: canonicalize the supported normalized JSON before fingerprinting and prove semantically identical supported inputs produce identical fingerprints, without broadening CanonicalRFQ v1. Do not start B3.3 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
