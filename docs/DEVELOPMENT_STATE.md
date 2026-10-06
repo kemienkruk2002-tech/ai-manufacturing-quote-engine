@@ -104,5 +104,10 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 - Post-merge main run `37428227503` passed **641/641 unit + 206/206 integration = 847/847 PASS**.
 - State-sync main commit `727c5e46edea669ac13edbb17f4fd2ddd165f252` passed run `37428385748`; this final documentation-only update requires its own CI verification on the next run.
 
+### B3.2 Deterministic AI input normalization — IN_PROGRESS
+Branch: `auto/b3-2-ai-input-normalization`.
+
+Scope: add one deterministic normalization boundary for supported JSON before AI request fingerprinting, prove equivalent supported object inputs are byte-identical/fingerprint-identical, preserve array order and value types, and do not change CanonicalRFQ v1 or provider output schema.
+
 ## Exact next task
-On the next autonomous run, first verify CI for the final state-only main commit. If green, start exactly **B3.2 deterministic AI input normalization** from verified main: canonicalize the supported normalized JSON before fingerprinting and prove semantically identical supported inputs produce identical fingerprints, without broadening CanonicalRFQ v1. Do not start B3.3 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect current NormalizedInputJson/fingerprint/prompt usage, implement the smallest deterministic normalization boundary with focused tests, publish a PR, and require green GitHub Actions. Do not start B3.3 or frontend in this run.
