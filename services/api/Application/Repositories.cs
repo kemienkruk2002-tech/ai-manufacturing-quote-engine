@@ -41,6 +41,9 @@ public sealed record StoredRfqCanonicalDraft(Guid TenantId, Guid QuoteRequestId,
     string CanonicalJson, long RowVersion, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 public sealed record RfqExtractionPersistenceResult(StoredRfqExtractionAttempt Attempt,
     StoredRfqCanonicalDraft? CurrentDraft);
+public sealed record RfqExtractionAtomicPersistenceResult(
+    StoredRfqExtractionExecution Execution,
+    RfqExtractionPersistenceResult Persistence);
 
 public enum RfqCanonicalReviewDecision
 {
@@ -136,6 +139,10 @@ public interface IRfqFileManifestRepository
 }
 public interface IRfqExtractionExecutionRepository
 {
+    Task<RfqExtractionAtomicPersistenceResult> SaveAtomicAsync(
+        RfqExtractionExecutionWrite execution,
+        RfqExtractionAttemptWrite attempt,
+        CancellationToken cancellationToken = default);
     Task<StoredRfqExtractionExecution> SaveAsync(RfqExtractionExecutionWrite write,
         CancellationToken cancellationToken = default);
     Task<RfqExtractionPersistenceResult> SaveAttemptAsync(RfqExtractionAttemptWrite write,

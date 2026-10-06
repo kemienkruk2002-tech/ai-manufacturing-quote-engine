@@ -198,15 +198,38 @@ Implemented in PR #20. Final PR head `0f8e9752864ccc0244c055518e460bf727a46457` 
 
 Implemented in PR #21. Repaired implementation head `afd561f146df0e81124c38832860d8a54eb6116e` passed run `37441176622`; final PR head `96097df9ad34d25bcb616e319443ed1067f8e6c7` passed run `37441377856`; merge `7fddfcf4c3936b12f8d3255a3b27520cb7852552`; post-merge main run `37441538770` passed **674 unit + 222 integration = 896/896 PASS**. Migration 010 adds immutable, tenant/RFQ-scoped extraction attempts and a separate current CanonicalRFQ draft. Raw provider output is retained separately from validated draft JSON; source lineage is persisted; arbitrary JSON cannot bypass the existing CanonicalRFQ v1 output guard; draft-to-attempt linkage is constrained to the same tenant and RFQ.
 
-### B3.6 Review/confirmation backend — DONE_PR_GREEN
+### B3.6 Review/confirmation backend — DONE
 - confirm/reject/correct extracted fields;
 - every correction records actor/source/reason;
 - critical unresolved CONFLICT/MISSING blocks progression.
 
 Implemented in PR #23. Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`; repaired final runtime/test head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`: **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
 
-### B3 audit
-Security/privacy audit, hallucination/fallback audit, reproducibility audit, load/idempotency tests and CI.
+### B3 audit — AUDITED_WITH_HARDENING
+Audit: `docs/B3_AI_RFQ_EXTRACTION_AUDIT_2026-10-06.md`.
+
+B3.1-B3.6 are functionally complete and green. The focused audit produced the following technical hardening tasks before B4:
+
+### B3.H1 Atomic extraction persistence — DONE_PR_GREEN
+- consolidate durable execution audit + immutable attempt + optional current-draft update into one PostgreSQL transaction;
+- forced failure must prove all-or-nothing persistence;
+- preserve tenant/RFQ scoping and existing immutable history.
+
+Implemented in PR #26. Verified implementation head `893ea9881b92f2820556447da93b0d1ade2aa361` passed run `37459976159`: **678 unit + 232 integration = 910/910 PASS**. `RfqExtractionServiceV1` now uses one atomic repository write for execution audit + immutable attempt + optional current draft. Forced PostgreSQL draft-write failure proves rollback of earlier audit/attempt inserts. No migration or business/provider policy changed.
+
+### B3.H2 Extraction retry/idempotency contract — READY after B3.H1
+- versioned deterministic idempotency boundary for retried/concurrent identical extraction requests;
+- same key cannot double-apply current draft;
+- different keys remain distinct attempts.
+
+### B3.H3 Tenant extraction HTTP endpoint — READY after B3.H1/H2
+- tenant-authorized endpoint for explicit model, allow_external_ai and exact source selections only;
+- no implicit latest files, actor identity, price/cost/time fields or workflow transition.
+
+### B3.H4 AI/review OpenAPI coverage — READY after B3.H3
+- add custom OpenAPI metadata for extraction and canonical review/readiness/history operations.
+
+Blocked deployment decisions from the audit remain B3.B1 approved redaction policy/implementation and B3.B2 supported source-materialization formats/parsers; do not invent them.
 
 ## Milestone B4 — RFQ file security
 
