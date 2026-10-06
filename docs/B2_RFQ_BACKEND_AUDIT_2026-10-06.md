@@ -140,7 +140,7 @@ The audit branch now keeps the fully written/hash-verified temporary file and se
 
 This preserves the local store's existing immutable object contract. Multi-process/cloud object-store semantics remain explicitly deferred to B4.4.
 
-Follow-up: **B2.H1 — local object-store atomic publication**, implemented in PR #14 and not DONE until the final PR head is green.
+Follow-up: **B2.H1 — local object-store atomic publication** — DONE. PR #14 merged as `2762f8998a7c8dd4e6c871b731d1fac40b7decdb`; post-merge main run `37424238234` is green.
 
 ### B2.F5 — P2 / planned B4.4 — production storage boundary is still incomplete
 
@@ -168,4 +168,4 @@ The implemented B2 data integrity, tenant isolation, draft concurrency, immutabl
 
 B2 is **not** a complete RFQ lifecycle yet because the state-machine and post-analysis lifecycle boundary require business decisions. Those blockers are explicit rather than guessed.
 
-The audit itself remains **CI_PENDING** until GitHub Actions is green for the exact final PR #14 head.
+The audit is **DONE**. PR #14 merged as `2762f8998a7c8dd4e6c871b731d1fac40b7decdb`, and post-merge main run `37424238234` completed successfully.
