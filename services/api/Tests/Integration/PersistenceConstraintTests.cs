@@ -26,7 +26,7 @@ public sealed class PersistenceConstraintTests(PostgresFixture db)
         await migrator.MigrateAsync();
         await migrator.SeedGoldenAsync();
         await migrator.SeedGoldenAsync();
-        Assert.Equal(9L, await db.ScalarAsync<long>("SELECT count(*) FROM schema_migrations"));
+        Assert.Equal(10L, await db.ScalarAsync<long>("SELECT count(*) FROM schema_migrations"));
         Assert.Equal(1L, await db.ScalarAsync<long>("SELECT count(*) FROM parts"));
         Assert.Equal(8L, await db.ScalarAsync<long>("SELECT count(*) FROM process_operations"));
         Assert.Equal(8L, await db.ScalarAsync<long>("SELECT count(*) FROM machines"));

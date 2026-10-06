@@ -151,6 +151,55 @@ public sealed class RfqExtractionServiceV1Tests
     }
 
     [Fact]
+    public async Task Completed_extraction_persists_raw_provider_output_canonical_draft_and_source_lineage()
+    {
+        var raw = ValidJson();
+        var executions = new FakeExecutions();
+        var service = Service(
+            new FakeFiles(Version("drawing", 1, "a1")),
+            new FakeMaterializer(_ => RfqExtractionSourceMaterializationResult.Success("rfq text")),
+            new CapturingProvider(AiProviderResult.Success(raw)),
+            executions);
+
+        var result = await service.ExecuteAsync(new(
+            TenantId, RfqId, "model-a", true,
+            [new("drawing", 1, "doc-type")]));
+
+        Assert.Equal(AiExecutionDisposition.COMPLETED, result.Disposition);
+        var attempt = Assert.Single(executions.AttemptWrites);
+        Assert.Equal(raw, attempt.RawProviderOutput);
+        Assert.Equal(raw, attempt.CanonicalDraftJson);
+        using var lineage = JsonDocument.Parse(attempt.SourceLineageJson);
+        var source = Assert.Single(lineage.RootElement.EnumerateArray().ToArray());
+        Assert.Equal("drawing", source.GetProperty("logical_key").GetString());
+        Assert.Equal(1, source.GetProperty("version_no").GetInt32());
+        Assert.Equal("doc-type", source.GetProperty("document_type").GetString());
+        Assert.Equal(new string('a', 64), source.GetProperty("sha256").GetString());
+        Assert.Equal("source:drawing:1", source.GetProperty("source_reference").GetString());
+    }
+
+    [Fact]
+    public async Task Invalid_provider_output_is_retained_in_attempt_history_but_never_becomes_current_draft()
+    {
+        const string raw = """{"unexpected":true}""";
+        var executions = new FakeExecutions();
+        var service = Service(
+            new FakeFiles(Version("drawing", 1, "a1")),
+            new FakeMaterializer(_ => RfqExtractionSourceMaterializationResult.Success("rfq text")),
+            new CapturingProvider(AiProviderResult.Success(raw)),
+            executions);
+
+        var result = await service.ExecuteAsync(new(
+            TenantId, RfqId, "model-a", true,
+            [new("drawing", 1, "doc-type")]));
+
+        Assert.Equal(AiExecutionDisposition.REVIEW_MANUAL, result.Disposition);
+        var attempt = Assert.Single(executions.AttemptWrites);
+        Assert.Equal(raw, attempt.RawProviderOutput);
+        Assert.Null(attempt.CanonicalDraftJson);
+    }
+
+    [Fact]
     public async Task Policy_block_is_persisted_with_deterministic_request_fingerprint()
     {
         var executions = new FakeExecutions();
@@ -261,6 +310,7 @@ public sealed class RfqExtractionServiceV1Tests
     private sealed class FakeExecutions : IRfqExtractionExecutionRepository
     {
         public List<RfqExtractionExecutionWrite> Writes { get; } = [];
+        public List<RfqExtractionAttemptWrite> AttemptWrites { get; } = [];
 
         public Task<StoredRfqExtractionExecution> SaveAsync(
             RfqExtractionExecutionWrite write,
@@ -279,6 +329,43 @@ public sealed class RfqExtractionServiceV1Tests
                 write.Code,
                 DateTimeOffset.Parse("2026-10-06T08:00:00Z")));
         }
+
+        public Task<RfqExtractionPersistenceResult> SaveAttemptAsync(
+            RfqExtractionAttemptWrite write,
+            CancellationToken cancellationToken = default)
+        {
+            AttemptWrites.Add(write);
+            var now = DateTimeOffset.Parse("2026-10-06T08:00:00Z");
+            var attemptId = Guid.NewGuid();
+            var attempt = new StoredRfqExtractionAttempt(
+                attemptId,
+                write.TenantId,
+                write.QuoteRequestId,
+                write.ModelId,
+                write.PromptVersion,
+                write.SchemaVersion,
+                write.RequestFingerprint,
+                write.Disposition,
+                write.Code,
+                write.SourceLineageJson,
+                write.RawProviderOutput,
+                now);
+            StoredRfqCanonicalDraft? draft = write.CanonicalDraftJson is null ? null
+                : new(write.TenantId, write.QuoteRequestId, attemptId, write.CanonicalDraftJson, 1, now, now);
+            return Task.FromResult(new RfqExtractionPersistenceResult(attempt, draft));
+        }
+
+        public Task<IReadOnlyList<StoredRfqExtractionAttempt>> ListAttemptsAsync(
+            Guid tenantId,
+            Guid quoteRequestId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<StoredRfqExtractionAttempt>>([]);
+
+        public Task<StoredRfqCanonicalDraft?> FindCurrentDraftAsync(
+            Guid tenantId,
+            Guid quoteRequestId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<StoredRfqCanonicalDraft?>(null);
     }
 
     private sealed class FakeFiles(params RfqFileVersion[] versions) : IRfqFileRepository

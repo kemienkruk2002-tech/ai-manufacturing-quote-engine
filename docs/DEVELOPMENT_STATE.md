@@ -201,5 +201,29 @@ Branch: `auto/b3-4-rfq-extraction-service`.
 - Merge `eda1601deddd9e640a756d1e8637733687c501f6`: post-merge `main` run `37435364172` **GREEN**, **671/671 unit + 215/215 integration = 886/886 PASS**.
 - This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
 
+### B3.5 Persist CanonicalRFQ draft — DONE_PR_GREEN
+Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
+
+## Current run findings
+- Re-read current `main`, `docs/AUTONOMOUS_BACKEND_PLAN.md`, `docs/DEVELOPMENT_STATE.md` and `docs/PROJECT_AUDIT_2026-10-05.md`.
+- Verified final B3.4 state-only main commit `daae79cc97f0bf69745678f95339c874e78ddd0f`; run `37439766594` is GREEN with **671 unit + 215 integration = 886/886 PASS**.
+- Found existing open PR #21 for B3.5 and inspected it before starting any new work. Its head `b97babed20c846c1cf9f0284be54574d714ea81b` failed run `37437143687`.
+- Concrete failed-CI causes: Npgsql returned `TIMESTAMPTZ` from `ExecuteScalarAsync` as `DateTime`, but the repository cast it directly to `DateTimeOffset`; two migration-count tests still expected 9 migrations after migration 010.
+- Fixed timestamp conversion without changing stored time semantics and updated focused migration-count tests to 10.
+- Removed default no-op implementations from `IRfqExtractionExecutionRepository`; every implementation must now explicitly support B3.5 persistence instead of silently dropping history.
+- Migration 010 adds tenant/RFQ-scoped immutable `rfq_extraction_attempts` plus separate current `rfq_canonical_drafts`.
+- Strengthened migration 010 so a current draft can reference only an extraction attempt from the **same tenant and same RFQ** via composite FK `(tenant_id, quote_request_id, source_attempt_id)`.
+- Extraction attempts retain model/prompt/schema versions, request fingerprint, disposition/code, source lineage and raw provider output. UPDATE/DELETE/TRUNCATE of attempts are rejected at the database boundary.
+- Current CanonicalRFQ draft is separate from raw provider output; a completed validated extraction initializes/replaces only the current draft and increments row version while immutable attempts remain unchanged.
+- Repository now reuses the existing `RfqExtractorOutputGuardV1` before accepting any JSON as a CanonicalRFQ draft; an arbitrary JSON object cannot bypass the existing CanonicalRFQ v1 contract.
+- Provider raw JSON is retained verbatim in attempt history even when output validation routes the execution to REVIEW_MANUAL; invalid output never becomes the current draft.
+- Added focused unit coverage for raw-output/draft separation and source lineage.
+- Added PostgreSQL integration coverage for raw output and lineage retention, explicit MISSING/CONFLICT preservation, current-draft row-version replacement, REVIEW_MANUAL non-overwrite, invalid CanonicalRFQ rejection, immutable attempt history, same-RFQ source-attempt FK, and tenant/RFQ scoping.
+- No B3.6 review/correction API, RFQ workflow transition, pricing, calculation engine, canonical calculation snapshot/hash/replay, geometry or frontend behavior changed.
+
+## CI state
+- Repaired PR #21 head `afd561f146df0e81124c38832860d8a54eb6116e` is **GREEN** in run `37441176622`: **674/674 unit + 222/222 integration = 896/896 PASS**.
+- Current head contains only plan/state documentation after that verified implementation and must also pass GitHub Actions before merge.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.5 Persist CanonicalRFQ draft** from verified main: add immutable extraction-attempt/history persistence, keep the current reviewed draft separate from raw provider output, retain source lineage, and keep MISSING/CONFLICT explicit. Do not start B3.6 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Inspect GitHub Actions for the exact current PR #21 head. If green, merge PR #21 and verify post-merge `main` CI. On a later run, start exactly **B3.6 Review/confirmation backend** from verified main. Do not start B3.6 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.

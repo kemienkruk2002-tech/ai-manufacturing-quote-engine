@@ -28,6 +28,18 @@ public sealed record RfqExtractionExecutionWrite(Guid TenantId, Guid QuoteReques
 public sealed record StoredRfqExtractionExecution(Guid AuditEventId, Guid TenantId, Guid QuoteRequestId,
     string ModelId, string PromptVersion, string SchemaVersion, string? RequestFingerprint,
     AiExecutionDisposition Disposition, string? Code, DateTimeOffset CreatedAt);
+public sealed record RfqExtractionAttemptWrite(Guid TenantId, Guid QuoteRequestId,
+    string ModelId, string PromptVersion, string SchemaVersion, string? RequestFingerprint,
+    AiExecutionDisposition Disposition, string? Code, string SourceLineageJson,
+    string? RawProviderOutput, string? CanonicalDraftJson);
+public sealed record StoredRfqExtractionAttempt(Guid Id, Guid TenantId, Guid QuoteRequestId,
+    string ModelId, string PromptVersion, string SchemaVersion, string? RequestFingerprint,
+    AiExecutionDisposition Disposition, string? Code, string SourceLineageJson,
+    string? RawProviderOutput, DateTimeOffset CreatedAt);
+public sealed record StoredRfqCanonicalDraft(Guid TenantId, Guid QuoteRequestId, Guid SourceAttemptId,
+    string CanonicalJson, long RowVersion, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+public sealed record RfqExtractionPersistenceResult(StoredRfqExtractionAttempt Attempt,
+    StoredRfqCanonicalDraft? CurrentDraft);
 
 public interface ICustomerRepository
 {
@@ -45,7 +57,6 @@ public interface IQuoteRequestRepository
     Task<QuoteRequest?> UpdateDraftAsync(Guid tenantId, Guid quoteRequestId, QuoteDraftUpdate update,
         CancellationToken cancellationToken = default);
 }
-
 public interface IPartRepository { Task<PartSnapshotData> GetRevisionAsync(Guid tenantId, Guid revisionId, CancellationToken cancellationToken = default); }
 public interface IRouteRepository { Task<RouteSnapshot> GetApprovedAsync(Guid tenantId, Guid revisionId, string routeCode, string version, CancellationToken cancellationToken = default); }
 public interface IMachineRateRepository { Task<decimal?> FindRateAsync(Guid tenantId, Guid machineId, RateType rateType, DateTimeOffset effectiveAt, string rateVersion, CancellationToken cancellationToken = default); }
@@ -75,6 +86,12 @@ public interface IRfqFileManifestRepository
 public interface IRfqExtractionExecutionRepository
 {
     Task<StoredRfqExtractionExecution> SaveAsync(RfqExtractionExecutionWrite write,
+        CancellationToken cancellationToken = default);
+    Task<RfqExtractionPersistenceResult> SaveAttemptAsync(RfqExtractionAttemptWrite write,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StoredRfqExtractionAttempt>> ListAttemptsAsync(Guid tenantId, Guid quoteRequestId,
+        CancellationToken cancellationToken = default);
+    Task<StoredRfqCanonicalDraft?> FindCurrentDraftAsync(Guid tenantId, Guid quoteRequestId,
         CancellationToken cancellationToken = default);
 }
 public sealed record FileObjectPutResult(string Sha256, long ByteSize, bool Created);
