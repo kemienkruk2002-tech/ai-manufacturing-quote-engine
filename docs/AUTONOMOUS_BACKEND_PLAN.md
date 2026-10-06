@@ -173,14 +173,14 @@ Implemented in PR #17. Final PR head `329b8f290b026381f96d838e58366abbe92e96dd` 
 
 Implemented in PR #18. Final PR head `3aeafbd0e6b7de06d0adc280fb62ddfb4f61f53b` passed run `37429341570`; merge `470f87a2a3e11431f377940de43549535fd62c46`; post-merge main run `37429487560` passed **652 unit + 206 integration = 858/858 PASS**. Normalization recursively sorts object properties, preserves array order/types, rejects duplicate names, and canonicalizes exact decimal number lexemes without floating-point conversion. CanonicalRFQ v1 is unchanged.
 
-### B3.3 AI execution policy — DONE_PR_GREEN
+### B3.3 AI execution policy — DONE
 - allow_external_ai flag;
 - permitted use cases/models/document types;
 - redaction seam;
 - bounded payload limits;
 - failure => REVIEW/MANUAL, never invented fallback.
 
-Implemented in PR #19. Verified implementation head `5b7f8145f55d0bb5f9ee052ff724191dbe959328` passed run `37432555854`: **664 unit + 210 integration = 874/874 PASS**. The boundary is default-deny: no production allowlist entries, payload limit or redaction rules are guessed. The default Host redactor blocks with `AI_REDACTION_NOT_CONFIGURED` until an approved deployment implementation replaces it. Architectural rationale: `docs/adr/002-external-ai-execution-policy.md`.
+Implemented in PR #19. Final PR head `280e39be406b891855df583ac7c12f84d1a5cf8c` passed run `37432765264`; merge `b6ad030f5c4dc2f909bf809c14d870a4180b3627`; post-merge main run `37432937882` passed **664 unit + 210 integration = 874/874 PASS**. The boundary is default-deny: no production allowlist entries, payload limit or redaction rules are guessed. The default Host redactor blocks with `AI_REDACTION_NOT_CONFIGURED` until an approved deployment implementation replaces it. Architectural rationale: `docs/adr/002-external-ai-execution-policy.md`.
 
 ### B3.4 RFQ extraction service
 - create normalized extraction input from explicitly selected RFQ sources;
