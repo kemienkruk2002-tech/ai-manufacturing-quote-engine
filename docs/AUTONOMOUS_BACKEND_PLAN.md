@@ -121,30 +121,38 @@ Goal: create a complete backend RFQ lifecycle independent of AI.
 - repository + domain records;
 - no guessed CRM fields.
 
-### B2.2 RFQ create/read/list — READY
+### B2.2 RFQ create/read/list — DONE
 - create draft RFQ;
 - fetch RFQ;
 - list/filter by status/date/customer;
 - preserve nullable part/quantity for early draft.
 
-### B2.3 RFQ deterministic state machine
+### B2.3 RFQ deterministic state machine — BLOCKED_BUSINESS_POLICY
 - explicit allowed transitions;
 - invalid transitions rejected;
 - audit every transition;
 - requirements for READY_FOR_ANALYSIS / READY_FOR_CALC encoded explicitly.
 
-### B2.4 RFQ update/version semantics
-- editable draft fields with optimistic/concurrency protection;
-- changes after analysis create a new revision/snapshot rather than mutating history;
-- tests for simultaneous updates.
+### B2.4 RFQ update/version semantics — PARTIAL
+- B2.4a editable `New` draft fields with optimistic/concurrency protection — DONE;
+- simultaneous update coverage — DONE;
+- B2.4b changes after analysis create a new revision/snapshot rather than mutating history — BLOCKED_BUSINESS_POLICY on the undefined B2.3 lifecycle boundary.
 
-### B2.5 File manifest endpoints
+### B2.5 File manifest endpoints — DONE
 - list logical documents and immutable versions;
 - source references;
 - file metadata attached to RFQ workspace model.
 
-### B2 audit
-Run full DB/API audit, replay old snapshots, tenant-isolation review, and CI. Generate B3 tasks from findings.
+### B2.H1 Local object-store atomic publication — CI_PENDING
+Audit PR #14 exposed a real concurrent same-hash publication race in the local object store. Preserve temp-file hash verification and atomic publication; exactly one in-process writer reports creation. Production multi-process/object-storage semantics remain B4.4.
+
+### B2.H2 Draft-only RFQ creation guard — READY
+B2.2 specifies creation of a draft RFQ, but the current create DTO accepts arbitrary existing statuses. Constrain create to `New` so callers cannot instantiate progressed states outside the future audited transition boundary. Do not define any later transition.
+
+### B2 audit — CI_PENDING
+Audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
+
+DB/API/replay/tenant-isolation evidence is recorded. B2.3 and B2.4b remain explicit business blockers. After B2.H1 and B2.H2 are green, later runs may continue with the next independent backend milestone task.
 
 ## Milestone B3 — AI RFQ extraction wired end-to-end
 
