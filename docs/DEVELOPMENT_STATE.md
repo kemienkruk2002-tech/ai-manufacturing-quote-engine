@@ -104,7 +104,7 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 - Post-merge main run `37428227503` passed **641/641 unit + 206/206 integration = 847/847 PASS**.
 - State-sync main commit `727c5e46edea669ac13edbb17f4fd2ddd165f252` passed run `37428385748`; this final documentation-only update requires its own CI verification on the next run.
 
-### B3.2 Deterministic AI input normalization — DONE_PR_GREEN
+### B3.2 Deterministic AI input normalization — DONE
 Branch: `auto/b3-2-ai-input-normalization`.
 
 Scope: add one deterministic normalization boundary for supported JSON before AI request fingerprinting, prove equivalent supported object inputs are byte-identical/fingerprint-identical, preserve array order and value types, and do not change CanonicalRFQ v1 or provider output schema.
@@ -125,7 +125,9 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 ## CI state
 - B3.2 implementation is published on `auto/b3-2-ai-input-normalization`.
 - Verified PR #18 head `b0f631d9bd375e62e58c42dcc61272537c279f99` is **GREEN** in run `37429166917`: **652/652 unit + 206/206 integration = 858/858 PASS**.
-- Current head contains only status documentation after that verified implementation and must also pass GitHub Actions before merge.
+- Final PR #18 head `3aeafbd0e6b7de06d0adc280fb62ddfb4f61f53b` passed run `37429341570`: **858/858 PASS**.
+- PR #18 merged as `470f87a2a3e11431f377940de43549535fd62c46`.
+- Post-merge main run `37429487560` passed **652/652 unit + 206/206 integration = 858/858 PASS**.
 
 ## Exact next task
-Inspect GitHub Actions for the exact current PR #18 head. If green, merge PR #18 and verify post-merge `main` CI. On a later run, start exactly **B3.3 AI execution policy** from verified main. Do not start B3.3 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+On the next autonomous run, first verify CI for the final state-only main commit. If green, start exactly **B3.3 AI execution policy** from verified main: introduce an explicit allow_external_ai gate, configured permitted use cases/models/document types, a redaction seam, bounded payload limits, and deterministic failure to REVIEW/MANUAL without invented fallback. Do not start B3.4 or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
