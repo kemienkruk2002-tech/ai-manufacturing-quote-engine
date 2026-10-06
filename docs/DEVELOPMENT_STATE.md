@@ -104,10 +104,27 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 - Post-merge main run `37428227503` passed **641/641 unit + 206/206 integration = 847/847 PASS**.
 - State-sync main commit `727c5e46edea669ac13edbb17f4fd2ddd165f252` passed run `37428385748`; this final documentation-only update requires its own CI verification on the next run.
 
-### B3.2 Deterministic AI input normalization — IN_PROGRESS
+### B3.2 Deterministic AI input normalization — CI_PENDING
 Branch: `auto/b3-2-ai-input-normalization`.
 
 Scope: add one deterministic normalization boundary for supported JSON before AI request fingerprinting, prove equivalent supported object inputs are byte-identical/fingerprint-identical, preserve array order and value types, and do not change CanonicalRFQ v1 or provider output schema.
 
+## Current run findings
+- Verified the preceding state-only main commit `cd5a7dc634f0f1ad11b2040f78af7d0c41df196b` first; run `37428554033` completed successfully.
+- Started exactly B3.2 on `auto/b3-2-ai-input-normalization`.
+- Reviewed the current request validation, fingerprint and prompt compilation paths. Before B3.2, all three accepted valid JSON but fingerprinting hashed the caller's original JSON bytes, so whitespace/property-order differences produced different fingerprints.
+- Primary-reference review: RFC 8785 confirms recursive object-property sorting and preservation of array order as core JSON canonicalization requirements; Microsoft System.Text.Json supports deterministic DOM-to-writer serialization. B3.2 does not claim full JCS conformance because it uses a project-specific exact-decimal number canonicalization instead of ECMAScript/IEEE-754 number serialization.
+- Added `AiInputJsonNormalizerV1`: recursively sorts object properties using ordinal UTF-16/.NET string ordering, preserves array order and JSON value types, removes insignificant formatting, canonicalizes decoded string escaping through `Utf8JsonWriter`, and rejects duplicate property names as ambiguous input.
+- Added exact JSON-number normalization without floating-point conversion. Equivalent decimal lexemes such as `1`, `1.0`, `10e-1` and `0.10e1` normalize identically; large exponent text is handled using `BigInteger`, avoiding precision loss.
+- `AiStructuredRequestValidatorV1` now rejects inputs the normalizer cannot canonicalize.
+- `AiRequestFingerprintV1` hashes canonical input JSON instead of caller formatting.
+- `RfqExtractorPromptV1` embeds the same canonical JSON in the provider prompt, so fingerprint and provider-visible input share one deterministic representation.
+- Added focused unit coverage for recursive property ordering, whitespace, nested objects in arrays, equivalent numeric lexemes, array-order significance, value-type significance, duplicate-property rejection and equivalent prompt output.
+- CanonicalRFQ v1 output schema/guard is unchanged. No provider policy, endpoint, persistence, pricing, workflow, deterministic calculation engine, canonical calculation snapshot/hash/replay, migration, immutable history or tenant isolation behavior changed.
+
+## CI state
+- B3.2 implementation is published on `auto/b3-2-ai-input-normalization`.
+- Status: **CI_PENDING**. Do not mark DONE or merge until GitHub Actions is green for the exact PR head.
+
 ## Exact next task
-Inspect current NormalizedInputJson/fingerprint/prompt usage, implement the smallest deterministic normalization boundary with focused tests, publish a PR, and require green GitHub Actions. Do not start B3.3 or frontend in this run.
+Open/inspect the B3.2 PR CI. If it fails, fix only the concrete failure. If green, record the exact green head in plan/state, merge only that verified head, and verify post-merge `main` CI. Do not start B3.3 or frontend in this run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
