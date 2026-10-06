@@ -136,6 +136,53 @@ public sealed class RfqCanonicalReviewRepositoryTests(PostgresFixture db)
     }
 
     [Fact]
+    public async Task Concurrent_same_version_reviews_have_exactly_one_winner_and_one_audit_event()
+    {
+        var rfqId = await CreateRfqAsync();
+        var canonical = JsonSerializer.Serialize(BaseRfq());
+        await Extractions.SaveAttemptAsync(new(
+            PostgresFixture.TenantId,
+            rfqId,
+            "model-test",
+            "rfq-extractor-prompt-v1",
+            "v1",
+            new string('e', 64),
+            AiExecutionDisposition.COMPLETED,
+            null,
+            "[]",
+            canonical,
+            canonical));
+
+        var fact = JsonSerializer.Serialize(Missing<string>());
+        var tasks = Enumerable.Range(0, 12)
+            .Select(index => Repository.ApplyAsync(new(
+                PostgresFixture.TenantId,
+                rfqId,
+                "rfq_number",
+                RfqCanonicalReviewDecision.CONFIRM,
+                canonical,
+                fact,
+                fact,
+                1,
+                $"reviewer-{index}",
+                "concurrency-audit",
+                "Same-version concurrency probe.",
+                $"audit-{index}")))
+            .ToArray();
+
+        var results = await Task.WhenAll(tasks);
+
+        Assert.Single(results, result => result.Status == RfqCanonicalReviewApplyStatus.UPDATED);
+        Assert.Equal(11, results.Count(result =>
+            result.Status == RfqCanonicalReviewApplyStatus.VERSION_CONFLICT));
+
+        var history = await Repository.ListAsync(PostgresFixture.TenantId, rfqId);
+        Assert.Single(history);
+        var current = await Extractions.FindCurrentDraftAsync(PostgresFixture.TenantId, rfqId);
+        Assert.Equal(2, current!.RowVersion);
+    }
+
+    [Fact]
     public async Task Review_history_is_tenant_scoped()
     {
         var rfqId = await CreateRfqAsync();
