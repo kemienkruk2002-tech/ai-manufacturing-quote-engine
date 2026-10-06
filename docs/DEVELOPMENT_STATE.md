@@ -33,7 +33,7 @@ The final implementation keeps a complete hash-verified temporary object, serial
 ### B2 audit — DONE
 DB/API/replay/tenant-isolation findings are recorded in `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`. PR #14 and post-merge main CI are green. PR #15 synchronized the verified final status and its post-merge main CI is also green.
 
-### B2.H2 Draft-only RFQ creation guard — READY
+### B2.H2 Draft-only RFQ creation guard — IN_PROGRESS
 B2.2 requires create-draft semantics, but the current create DTO accepts arbitrary status. Restrict creation to `New` without defining any later workflow transition.
 
 ## Known blockers
@@ -70,5 +70,10 @@ B2.2 requires create-draft semantics, but the current create DTO accepts arbitra
 - Verified main before this state-only commit: **GREEN**, run `37424631448`, **824/824 PASS**.
 - This commit only synchronizes DEVELOPMENT_STATE.md after the verified PR #15 merge and must itself pass GitHub Actions before the next task starts.
 
+## Current task
+Branch: `auto/b2-h2-draft-only-create`.
+
+B2.H2 scope is deliberately narrow: the create endpoint must only create `New` RFQs. Existing status vocabulary and later transitions remain untouched; no B2.3 workflow policy is inferred.
+
 ## Exact next task
-On the next autonomous run, first verify CI for this state-only commit. If green, start exactly **B2.H2 draft-only RFQ creation guard** from verified main, add focused API/repository tests, publish a task PR, and require green GitHub Actions. Do not start B3 before B2.H2 is green. B2.3/B2.4b remain blocked unless workflow policy is supplied.
+Implement a deterministic API guard that rejects any explicit create status other than `New`, add focused integration coverage proving progressed/other non-New statuses cannot be created through the create API while normal draft creation still succeeds, publish a PR, and require green GitHub Actions before marking B2.H2 DONE.
