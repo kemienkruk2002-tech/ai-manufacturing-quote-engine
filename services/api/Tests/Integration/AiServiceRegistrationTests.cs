@@ -32,6 +32,49 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
     }
 
     [Fact]
+    public async Task Execution_policy_is_default_deny_with_no_allowlists_or_payload_limit()
+    {
+        using var factory = Factory();
+        using var client = factory.CreateClient();
+
+        var executor = factory.Services.GetRequiredService<AiPolicyExecutorV1>();
+        var result = await executor.ExecuteAsync(new(
+            new("rfq-extractor", "model-test", "prompt-v1", "v1", "{}"),
+            true,
+            ["test-document"]));
+
+        Assert.Equal(AiExecutionDisposition.REVIEW_MANUAL, result.Disposition);
+        Assert.Equal(AiPolicyExecutorV1.UseCaseNotPermittedCode, result.Code);
+        Assert.Null(result.GatewayResult);
+    }
+
+    [Fact]
+    public async Task Fully_permitted_policy_still_blocks_until_redactor_is_explicitly_replaced()
+    {
+        using var factory = Factory(new Dictionary<string, string?>
+        {
+            ["Ai:Enabled"] = "true",
+            ["Ai:ApiKey"] = "integration-test-secret",
+            ["Ai:BaseUrl"] = "https://api.openai.com/",
+            ["Ai:Policy:PermittedUseCases:0"] = "rfq-extractor",
+            ["Ai:Policy:PermittedModels:0"] = "model-test",
+            ["Ai:Policy:PermittedDocumentTypes:0"] = "test-document",
+            ["Ai:Policy:MaxPayloadBytes"] = "4096"
+        });
+        using var client = factory.CreateClient();
+
+        var executor = factory.Services.GetRequiredService<AiPolicyExecutorV1>();
+        var result = await executor.ExecuteAsync(new(
+            new("rfq-extractor", "model-test", "prompt-v1", "v1", "{}"),
+            true,
+            ["test-document"]));
+
+        Assert.Equal(AiExecutionDisposition.REVIEW_MANUAL, result.Disposition);
+        Assert.Equal(AiPolicyExecutorV1.RedactionNotConfiguredCode, result.Code);
+        Assert.Null(result.GatewayResult);
+    }
+
+    [Fact]
     public void Enabled_ai_registers_retry_provider_and_configured_http_client()
     {
         using var factory = Factory(new Dictionary<string, string?>
@@ -110,6 +153,40 @@ public sealed class AiServiceRegistrationTests(PostgresFixture db)
         });
 
         Assert.Contains("Ai:RetryDelaysMs values must be greater than or equal to zero when AI is enabled.",
+            error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Blank_policy_allowlist_value_fails_startup_validation()
+    {
+        using var factory = Factory(new Dictionary<string, string?>
+        {
+            ["Ai:Policy:PermittedModels:0"] = " "
+        });
+
+        var error = Assert.ThrowsAny<Exception>(() =>
+        {
+            using var _ = factory.CreateClient();
+        });
+
+        Assert.Contains("Ai:Policy:PermittedModels cannot contain blank values.",
+            error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Negative_policy_payload_limit_fails_startup_validation()
+    {
+        using var factory = Factory(new Dictionary<string, string?>
+        {
+            ["Ai:Policy:MaxPayloadBytes"] = "-1"
+        });
+
+        var error = Assert.ThrowsAny<Exception>(() =>
+        {
+            using var _ = factory.CreateClient();
+        });
+
+        Assert.Contains("Ai:Policy:MaxPayloadBytes must be greater than or equal to zero.",
             error.ToString(), StringComparison.Ordinal);
     }
 
