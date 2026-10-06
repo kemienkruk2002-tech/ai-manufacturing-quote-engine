@@ -230,7 +230,11 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 ## CI state
 - PR #21 final head `96097df9ad34d25bcb616e319443ed1067f8e6c7`: **GREEN**, run `37441377856`, **896/896 PASS**.
 - Merge `7fddfcf4c3936b12f8d3255a3b27520cb7852552`: post-merge `main` run `37441538770` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
-- This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
+- State-sync commit `a79ebdcfa8139a43a49d29b95557dc3995852ae2` exposed one unrelated pre-existing flaky host-startup assertion in run `37441740738`: B3.5 unit suite stayed **674/674 PASS**, while `Negative_policy_payload_limit_fails_startup_validation` received `ObjectDisposedException` from `WebApplicationFactory` instead of the options-validation text.
+- Fixed only that test in PR #22 by resolving `AiExecutionPolicyOptions` through the registered `IOptions` validators directly; runtime policy/configuration is unchanged.
+- PR #22 head `08aa5a8ff33909ca24f49bb1d4f7e3dc867ceba2`: run `37441990446` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
+- PR #22 merged as `ab9fa9d0fb034e1ed3781f087288795addc3e714`; post-merge main run `37442192884` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
+- This final documentation-only commit records that repaired verified state and must itself pass GitHub Actions before the next backend task starts.
 
 ## Exact next task
 On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.6 Review/confirmation backend** from verified main: add backend operations to confirm/reject/correct extracted fields with actor/source/reason audit, while preserving explicit MISSING/CONFLICT blocking semantics without inventing workflow transition policy. Do not start the B3 audit or frontend in the same run. B2.3/B2.4b remain blocked unless workflow policy is supplied.
