@@ -45,13 +45,15 @@ public sealed record RfqExtractionServiceResult(
     string PromptVersion,
     string SchemaVersion,
     AiGatewayResult? GatewayResult,
-    StoredRfqExtractionExecution? StoredExecution);
+    StoredRfqExtractionExecution? StoredExecution,
+    RfqExtractionPersistenceResult? Persistence = null);
 
 public sealed class RfqExtractionServiceV1(
     IRfqFileRepository files,
     IRfqExtractionSourceMaterializer materializer,
     AiPolicyExecutorV1 policyExecutor,
-    IRfqExtractionExecutionRepository executions)
+    IRfqExtractionExecutionRepository executions,
+    IRfqExtractionPersistenceRepository persistence)
 {
     public const string SourceRequiredCode = "RFQ_EXTRACTION_SOURCE_REQUIRED";
     public const string SourceNotFoundCode = "RFQ_EXTRACTION_SOURCE_NOT_FOUND";
@@ -71,7 +73,7 @@ public sealed class RfqExtractionServiceV1(
                 "The RFQ does not exist in the requested tenant.");
 
         if (request.Sources.Count == 0)
-            return await PersistReviewAsync(request, SourceRequiredCode, null, cancellationToken);
+            return await PersistReviewAsync(request, SourceRequiredCode, null, "[]", cancellationToken);
 
         ValidateSelections(request.Sources);
 
@@ -80,8 +82,10 @@ public sealed class RfqExtractionServiceV1(
             .ThenBy(source => source.VersionNo)
             .ThenBy(source => source.DocumentType, StringComparer.Ordinal)
             .ToArray();
+        var requestedLineage = SerializeRequestedLineage(selected);
 
         var normalizedSources = new List<object>(selected.Length);
+        var resolvedLineage = new List<object>(selected.Length);
         foreach (var selection in selected)
         {
             var version = await files.FindVersionAsync(
@@ -92,7 +96,16 @@ public sealed class RfqExtractionServiceV1(
                 cancellationToken);
 
             if (version is null)
-                return await PersistReviewAsync(request, SourceNotFoundCode, null, cancellationToken);
+                return await PersistReviewAsync(request, SourceNotFoundCode, null, requestedLineage, cancellationToken);
+
+            resolvedLineage.Add(new
+            {
+                logical_key = version.LogicalKey,
+                version_no = version.VersionNo,
+                document_type = selection.DocumentType,
+                sha256 = version.Sha256,
+                source_reference = version.SourceReference
+            });
 
             var materialized = await materializer.MaterializeAsync(
                 version, selection.DocumentType, cancellationToken);
@@ -104,6 +117,7 @@ public sealed class RfqExtractionServiceV1(
                         ? SourceMaterializationFailedCode
                         : materialized.Code,
                     null,
+                    JsonSerializer.Serialize(resolvedLineage),
                     cancellationToken);
 
             normalizedSources.Add(new
@@ -118,6 +132,7 @@ public sealed class RfqExtractionServiceV1(
             });
         }
 
+        var sourceLineage = JsonSerializer.Serialize(resolvedLineage);
         var serializedInput = JsonSerializer.Serialize(new { sources = normalizedSources });
         var normalizedInput = AiInputJsonNormalizerV1.Normalize(serializedInput);
         if (!normalizedInput.IsValid)
@@ -155,6 +170,17 @@ public sealed class RfqExtractionServiceV1(
                 execution.Code),
             cancellationToken);
 
+        var rawProviderOutput = execution.GatewayResult?.RawProviderJson;
+        var canonicalDraft = execution.Disposition == AiExecutionDisposition.COMPLETED
+            && execution.GatewayResult is { IsPass: true }
+            ? rawProviderOutput
+            : null;
+        var persisted = await persistence.SaveAsync(
+            new(request.TenantId, request.QuoteRequestId, request.ModelId,
+                RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
+                effectiveFingerprint, execution.Disposition, execution.Code, sourceLineage,
+                rawProviderOutput, canonicalDraft), cancellationToken);
+
         return new(
             execution.Disposition,
             execution.Code,
@@ -163,13 +189,15 @@ public sealed class RfqExtractionServiceV1(
             RfqExtractorPromptV1.PromptVersion,
             RfqExtractorPromptV1.SchemaVersion,
             execution.GatewayResult,
-            stored);
+            stored,
+            persisted);
     }
 
     private async Task<RfqExtractionServiceResult> PersistReviewAsync(
         RfqExtractionServiceRequest request,
         string code,
         string? fingerprint,
+        string sourceLineage,
         CancellationToken cancellationToken)
     {
         var stored = await executions.SaveAsync(
@@ -183,6 +211,11 @@ public sealed class RfqExtractionServiceV1(
                 AiExecutionDisposition.REVIEW_MANUAL,
                 code),
             cancellationToken);
+        var persisted = await persistence.SaveAsync(
+            new(request.TenantId, request.QuoteRequestId, request.ModelId,
+                RfqExtractorPromptV1.PromptVersion, RfqExtractorPromptV1.SchemaVersion,
+                fingerprint, AiExecutionDisposition.REVIEW_MANUAL, code, sourceLineage, null, null),
+            cancellationToken);
 
         return new(
             AiExecutionDisposition.REVIEW_MANUAL,
@@ -192,8 +225,17 @@ public sealed class RfqExtractionServiceV1(
             RfqExtractorPromptV1.PromptVersion,
             RfqExtractorPromptV1.SchemaVersion,
             null,
-            stored);
+            stored,
+            persisted);
     }
+
+    private static string SerializeRequestedLineage(IEnumerable<RfqExtractionSourceSelection> sources) =>
+        JsonSerializer.Serialize(sources.Select(source => new
+        {
+            logical_key = source.LogicalKey,
+            version_no = source.VersionNo,
+            document_type = source.DocumentType
+        }));
 
     private static void ValidateIdentity(RfqExtractionServiceRequest request)
     {
