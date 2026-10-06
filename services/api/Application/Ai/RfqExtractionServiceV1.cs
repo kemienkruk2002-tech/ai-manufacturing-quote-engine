@@ -99,7 +99,9 @@ public sealed class RfqExtractionServiceV1(
             if (!materialized.IsSuccess || materialized.Content is null)
                 return await PersistReviewAsync(
                     request,
-                    materialized.Code ?? SourceMaterializationFailedCode,
+                    string.IsNullOrWhiteSpace(materialized.Code)
+                        ? SourceMaterializationFailedCode
+                        : materialized.Code,
                     null,
                     cancellationToken);
 
@@ -138,6 +140,8 @@ public sealed class RfqExtractionServiceV1(
                 selected.Select(source => source.DocumentType).ToArray()),
             cancellationToken);
 
+        var effectiveFingerprint = execution.GatewayResult?.Fingerprint ?? fingerprint.Fingerprint;
+
         var stored = await executions.SaveAsync(
             new(
                 request.TenantId,
@@ -145,7 +149,7 @@ public sealed class RfqExtractionServiceV1(
                 request.ModelId,
                 RfqExtractorPromptV1.PromptVersion,
                 RfqExtractorPromptV1.SchemaVersion,
-                fingerprint.Fingerprint,
+                effectiveFingerprint,
                 execution.Disposition,
                 execution.Code),
             cancellationToken);
@@ -153,7 +157,7 @@ public sealed class RfqExtractionServiceV1(
         return new(
             execution.Disposition,
             execution.Code,
-            fingerprint.Fingerprint,
+            effectiveFingerprint,
             request.ModelId,
             RfqExtractorPromptV1.PromptVersion,
             RfqExtractorPromptV1.SchemaVersion,
