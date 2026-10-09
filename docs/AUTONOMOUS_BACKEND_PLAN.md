@@ -237,13 +237,13 @@ Implemented in PR #26. Verified implementation head `893ea9881b92f2820556447da93
 
 Ordered, separately reviewable repairs:
 
-1. restore the six original draft regression methods and helper, preserving the PR's migration count of 11;
+1. restore the six original draft regression methods and helper, preserving the PR's migration count of 11 — completed in PR #33, merged only into the PR #27 branch;
 2. harden all-or-none identity and tenant-scoped audit linkage with database tests, preserving applied migration history;
 3. wire the versioned identity through service and atomic persistence, then prove same-key replay, different-hash conflict, coordinated concurrency, REVIEW_MANUAL and failure rollback. Replay after a later human correction must not reapply an older draft.
 
-Restoration alone does not finish H2. Follow [PROJECT_STATUS](management/PROJECT_STATUS.md) for exact repair commits, independent review and CI; do not treat the expected restored count as an executed result or promise exactly-once external provider calls.
+Restoration alone does not finish H2. Follow [PROJECT_STATUS](management/PROJECT_STATUS.md) for exact repair commits, independent review and CI. Do not promise exactly-once external provider calls without a separately designed and tested execution contract.
 
-Restoration is now in [PR #33](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/33), targeting the existing PR #27 branch. Repair commit `ea1e5957272df3f664861e4e4b6342b14e98c2bc` passed **683 unit + 232 integration = 915 locally** and independent QA review; remote CI is pending at this documentation checkpoint. Schema and execution/replay tasks remain open.
+Restoration from [PR #33](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/33) is merged only into the existing PR #27 branch as `c4ef0643379879e1fabcf7a458725ee5b9e817f8`. Repair commit `ea1e5957272df3f664861e4e4b6342b14e98c2bc` passed independent QA review and [CI 37966082743](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966082743): **683 unit + 232 integration = 915 PASS**, zero failed/skipped. Post-merge [PR CI 37966270514](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966270514) and [push CI 37966262994](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966262994) both succeeded. Main remains `cc0aaca`, 910 PASS; H2 schema and execution/replay tasks remain open.
 
 ### B3.H3 Tenant extraction HTTP endpoint — WAITING_FOR_B3.H2
 - tenant-authorized endpoint for explicit model, allow_external_ai and exact source selections only;
