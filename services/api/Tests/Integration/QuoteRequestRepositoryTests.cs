@@ -1,4 +1,5 @@
 using QuoteEngine.Application;
+using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
 using QuoteEngine.Persistence;
 
@@ -75,7 +76,8 @@ public sealed class QuoteRequestRepositoryTests(PostgresFixture db)
     {
         var request = new QuoteRequest(PostgresFixture.TenantId, Guid.NewGuid(), PostgresFixture.RevisionId, 1, status);
 
-        await Assert.ThrowsAsync<ArgumentException>(() => Repository.CreateAsync(request));
+        var validation = await Assert.ThrowsAsync<DomainValidationException>(() => Repository.CreateAsync(request));
+        Assert.Equal("RFQ_CREATE_STATUS_INVALID", Assert.Single(validation.Errors).Code);
         Assert.Null(await Repository.FindAsync(request.TenantId, request.Id));
     }
 

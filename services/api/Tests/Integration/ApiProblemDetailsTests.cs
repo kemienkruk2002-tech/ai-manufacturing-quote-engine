@@ -101,6 +101,27 @@ public sealed class ApiProblemDetailsTests(PostgresFixture db)
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("correlation_id").GetString()));
     }
 
+    [Fact]
+    public async Task Unexpected_argument_exception_still_returns_sanitized_500()
+    {
+        const string secretMarker = "SECRET_INTERNAL_ARGUMENT=must-not-leak";
+        using var factory = new ThrowingRfqFileApiFactory(db.ConnectionString,
+            new ArgumentException(secretMarker));
+        using var client = factory.CreateClient();
+        TestAuthentication.Authenticate(client, PostgresFixture.TenantId);
+
+        using var response = await client.PostAsync(
+            $"/api/tenants/{PostgresFixture.TenantId}/rfqs/{PostgresFixture.RequestId}/files/drawing",
+            FileBody("content"u8.ToArray()));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        var raw = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain(secretMarker, raw, StringComparison.Ordinal);
+        var problem = JsonSerializer.Deserialize<JsonElement>(raw);
+        Assert.Equal("INTERNAL_SERVER_ERROR", problem.GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("correlation_id").GetString()));
+    }
+
     private static MultipartFormDataContent FileBody(byte[] content)
     {
         var body = new MultipartFormDataContent();
