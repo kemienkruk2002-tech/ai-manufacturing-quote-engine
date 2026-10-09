@@ -1,5 +1,6 @@
 using Npgsql;
 using QuoteEngine.Application;
+using QuoteEngine.Domain.Calculation;
 using QuoteEngine.Domain.Quoting;
 
 namespace QuoteEngine.Persistence;
@@ -27,9 +28,28 @@ public sealed class QuoteRequestRepository(NpgsqlDataSource dataSource) : IQuote
         await using var command = dataSource.CreateCommand($"""UPDATE quote_requests SET customer_id=@customer,part_revision_id=@revision,requested_quantity=@quantity,currency=@currency,external_rfq_no=@external,requested_due_date=@due,row_version=row_version+1 WHERE tenant_id=@tenant AND id=@id AND status='New' AND row_version=@expected RETURNING {Columns}""");
         command.Parameters.AddWithValue("tenant", tenantId); command.Parameters.AddWithValue("id", quoteRequestId); command.Parameters.AddWithValue("expected", update.ExpectedRowVersion); command.Parameters.AddWithValue("customer", (object?)update.CustomerId ?? DBNull.Value); command.Parameters.AddWithValue("revision", (object?)update.PartRevisionId ?? DBNull.Value); command.Parameters.AddWithValue("quantity", (object?)update.RequestedQuantity ?? DBNull.Value); command.Parameters.AddWithValue("currency", update.Currency); command.Parameters.AddWithValue("external", (object?)update.ExternalRfqNo ?? DBNull.Value); command.Parameters.AddWithValue("due", (object?)update.RequestedDueDate ?? DBNull.Value); await using var reader = await command.ExecuteReaderAsync(cancellationToken); return await reader.ReadAsync(cancellationToken) ? Read(reader) : null;
     }
-    private static void Validate(QuoteRequest request) { if (request.TenantId == Guid.Empty || request.Id == Guid.Empty) throw new ArgumentException("RFQ tenant and id are required."); if (request.Status != QuoteStatus.New) throw new ArgumentException("RFQ creation only supports New draft status."); if (request.RequestedQuantity is <= 0) throw new ArgumentOutOfRangeException(nameof(request.RequestedQuantity)); ValidateCurrency(request.Currency); }
-    private static void ValidateDraft(QuoteDraftUpdate update) { if (update.RequestedQuantity is <= 0) throw new ArgumentOutOfRangeException(nameof(update.RequestedQuantity)); ValidateCurrency(update.Currency); }
-    private static void ValidateCurrency(string currency) { if (currency.Length != 3 || currency.Any(c => c is < 'A' or > 'Z')) throw new ArgumentException("RFQ currency must be a three-letter uppercase code."); }
+    private static void Validate(QuoteRequest request)
+    {
+        if (request.TenantId == Guid.Empty || request.Id == Guid.Empty)
+            throw new DomainValidationException("RFQ_IDENTIFIER_INVALID", "RFQ tenant and identifier are required.");
+        if (request.Status != QuoteStatus.New)
+            throw new DomainValidationException("RFQ_CREATE_STATUS_INVALID", "RFQ creation only supports New draft status.");
+        ValidateDraftFields(request.CustomerId, request.PartRevisionId, request.RequestedQuantity, request.Currency);
+    }
+
+    private static void ValidateDraft(QuoteDraftUpdate update) =>
+        ValidateDraftFields(update.CustomerId, update.PartRevisionId, update.RequestedQuantity, update.Currency);
+
+    private static void ValidateDraftFields(Guid? customerId, Guid? partRevisionId,
+        int? requestedQuantity, string currency)
+    {
+        if (customerId == Guid.Empty || partRevisionId == Guid.Empty)
+            throw new DomainValidationException("RFQ_REFERENCE_ID_INVALID", "RFQ reference identifiers must not be empty.");
+        if (requestedQuantity is <= 0)
+            throw new DomainValidationException("RFQ_QUANTITY_INVALID", "RFQ requested quantity must be greater than zero.");
+        if (currency.Length != 3 || currency.Any(c => c is < 'A' or > 'Z'))
+            throw new DomainValidationException("RFQ_CURRENCY_INVALID", "RFQ currency must be a three-letter uppercase code.");
+    }
     private static void AddWriteParameters(NpgsqlCommand command, QuoteRequest request) { command.Parameters.AddWithValue("id", request.Id); command.Parameters.AddWithValue("tenant", request.TenantId); command.Parameters.AddWithValue("customer", (object?)request.CustomerId ?? DBNull.Value); command.Parameters.AddWithValue("revision", (object?)request.PartRevisionId ?? DBNull.Value); command.Parameters.AddWithValue("external", (object?)request.ExternalRfqNo ?? DBNull.Value); command.Parameters.AddWithValue("quantity", (object?)request.RequestedQuantity ?? DBNull.Value); command.Parameters.AddWithValue("currency", request.Currency); command.Parameters.AddWithValue("due", (object?)request.RequestedDueDate ?? DBNull.Value); command.Parameters.AddWithValue("status", request.Status.ToString()); }
     private static QuoteRequest Read(NpgsqlDataReader reader) => new(reader.GetGuid(1), reader.GetGuid(0), reader.IsDBNull(2) ? null : reader.GetGuid(2), reader.IsDBNull(3) ? null : reader.GetInt32(3), Enum.Parse<QuoteStatus>(reader.GetString(4)), reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetGuid(6), reader.IsDBNull(7) ? null : reader.GetString(7), reader.IsDBNull(8) ? null : reader.GetFieldValue<DateOnly>(8), reader.GetInt64(9));
 }
