@@ -6,7 +6,7 @@ Updated: 2026-10-09
 Scope: backend-first. Do not start frontend until the backend gates below are complete.
 Source of truth: repository code/tests at the stated commits, [current status and task register](management/PROJECT_STATUS.md), [backend module audit](audits/BACKEND_MODULE_AUDIT_2026-10-09.md), [PR #27 audit](audits/PR_27_AUDIT_2026-10-09.md), and this plan. The 2026-10-05/06 audits are historical evidence, not current task instructions.
 
-Verified main: `cc0aaca8ec357506c63d82eeccd6271a90f6d1e2`, [CI 37460565034](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37460565034), **678 unit + 232 integration = 910/910 PASS**. B3.H1 is merged; B3.H2 is already in progress in PR #27. Do not create a duplicate H2 implementation branch from main. Main merges require explicit Owner approval; green CI alone is not authorization.
+Verified main after Owner-approved PR #36: `ce00d06b15a81cbd8bec65ff25c89a089a6e14ad`, [CI 37970757483](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970757483), **678 unit + 258 integration = 936/936 PASS**. B3.H1 is merged; B3.H2 is already in progress in PR #27. Do not create a duplicate H2 implementation branch from main. Main merges require explicit Owner approval; green CI alone is not authorization.
 
 ## Operating model
 
@@ -161,9 +161,9 @@ Audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
 
 PR #14 merged as `2762f8998a7c8dd4e6c871b731d1fac40b7decdb`; post-merge main run `37424238234` is green. DB/API/replay/tenant-isolation evidence is recorded. B2.H2 was subsequently completed; B2.3 and B2.4b remain explicit business blockers.
 
-### RFQ create/update validation — READY / #31
+### RFQ create/update validation — DONE / #31
 
-[Issue #31](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/31) scopes the current audit finding that invalid RFQ fields reach generic 500 paths. Reproduce with focused POST/PUT tests, validate using existing rules and map only known errors safely; never globally convert every `ArgumentException` to 400. This task is independent of H2 and does not require new lifecycle/pricing policy. It has not been implemented by the documentation audit.
+[Issue #31](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/31) is complete through PR #36: known invalid RFQ fields now produce typed safe 400 responses; unrelated `ArgumentException` remains a sanitized 500. ASTRA independently reviewed `899a19b`, reproduced 936 passing tests locally and verified exact-commit CI. Owner-approved main merge `ce00d06` passed [post-merge CI 37970757483](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970757483): **678 unit + 258 integration = 936 PASS**, zero failed/skipped. Authorization ordering, draft conflict behavior and existing business rules remain intact.
 
 ## Milestone B3 — AI RFQ extraction wired end-to-end
 
@@ -238,12 +238,12 @@ Implemented in PR #26. Verified implementation head `893ea9881b92f2820556447da93
 Ordered, separately reviewable repairs:
 
 1. restore the six original draft regression methods and helper, preserving the PR's migration count of 11 — completed in PR #33, merged only into the PR #27 branch;
-2. harden all-or-none identity and tenant-scoped audit linkage with database tests, preserving applied migration history;
-3. wire the versioned identity through service and atomic persistence, then prove same-key replay, different-hash conflict, coordinated concurrency, REVIEW_MANUAL and failure rollback. Replay after a later human correction must not reapply an older draft.
+2. harden all-or-none identity and tenant-scoped audit linkage with database tests, preserving applied migration history — completed in PR #35 / #34, feature merge `f55c42d`, [post-merge CI 37970708382](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970708382): **939 PASS**;
+3. implement durable keyed repository save/lookup in Owner-launch task [#37](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/37), including same-key replay, different-hash conflict, coordinated concurrency, REVIEW_MANUAL and failure rollback. Replay after a later human correction must not reapply an older draft. Wire the extraction service in a separate task after repository acceptance.
 
 Restoration alone does not finish H2. Follow [PROJECT_STATUS](management/PROJECT_STATUS.md) for exact repair commits, independent review and CI. Do not promise exactly-once external provider calls without a separately designed and tested execution contract.
 
-Restoration from [PR #33](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/33) is merged only into the existing PR #27 branch as `c4ef0643379879e1fabcf7a458725ee5b9e817f8`. Repair commit `ea1e5957272df3f664861e4e4b6342b14e98c2bc` passed independent QA review and [CI 37966082743](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966082743): **683 unit + 232 integration = 915 PASS**, zero failed/skipped. Post-merge [PR CI 37966270514](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966270514) and [push CI 37966262994](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966262994) both succeeded. Main remains `cc0aaca`, 910 PASS; H2 schema and execution/replay tasks remain open.
+Restoration from [PR #33](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/33) is merged only into the existing PR #27 branch as `c4ef0643379879e1fabcf7a458725ee5b9e817f8`. Repair commit `ea1e5957272df3f664861e4e4b6342b14e98c2bc` passed independent QA review and [CI 37966082743](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966082743): **683 unit + 232 integration = 915 PASS**, zero failed/skipped. Post-merge [PR CI 37966270514](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966270514) and [push CI 37966262994](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966262994) both succeeded. At that restoration checkpoint main was `cc0aaca`, 910 PASS. Schema PR #35 is now integrated as recorded above; repository idempotency #37 and later service wiring remain open.
 
 ### B3.H3 Tenant extraction HTTP endpoint — WAITING_FOR_B3.H2
 - tenant-authorized endpoint for explicit model, allow_external_ai and exact source selections only;
