@@ -1,7 +1,7 @@
 # Development State
 
 Updated: 2026-10-09
-Mode: specialist-led backend work; ASTRA coordinates integration and independent review.
+Mode: Owner launches implementation models from GitHub tasks; ASTRA prepares briefs, reviews results and coordinates integration. ASTRA does not automatically launch workers.
 
 ## Current synopsis — 2026-10-09
 

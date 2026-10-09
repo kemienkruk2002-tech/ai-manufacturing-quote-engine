@@ -22,7 +22,7 @@ Development proceeds in small, independently testable increments. Each increment
 9. never mark a task DONE unless CI is green;
 10. after every completed milestone, perform a focused audit and generate the next small milestone.
 
-ASTRA assigns bounded tasks to specialists, integrates their results and owns the shared status register. Implementation and independent review use separate worktrees. Every task has one owner, allowed scope, dependencies, evidence and a reviewer; see the issue briefs linked from [PROJECT_STATUS](management/PROJECT_STATUS.md). Independent tasks may proceed in parallel; dependent H2 repairs stay ordered.
+The Owner chooses and launches implementation models using the bounded GitHub tasks prepared by ASTRA. ASTRA does not automatically start workers. ASTRA reviews the submitted PRs, checks exact-commit test/CI evidence, identifies mistakes, requests corrections and integrates accepted results. Implementation and review remain separate. Every task has one owner, allowed scope, dependencies, evidence and a reviewer; see [PROJECT_STATUS](management/PROJECT_STATUS.md). Ready launch packets are schema task #34 (feature base) and independent API validation #31 (main base). Dependent H2 repairs stay ordered; main merges still require Owner approval.
 
 Frozen unless a failing test or versioned business rule requires a change:
 - TimeEngineV1
