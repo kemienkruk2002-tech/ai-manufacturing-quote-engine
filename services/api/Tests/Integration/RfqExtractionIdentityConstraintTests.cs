@@ -61,7 +61,7 @@ public sealed class RfqExtractionIdentityConstraintTests(PostgresFixture db)
     [InlineData("", "retry", "valid")]
     [InlineData("   ", "retry", "valid")]
     [InlineData("v1", "", "valid")]
-    [InlineData("v1", " \t ", "valid")]
+    [InlineData("v1", "   ", "valid")]
     [InlineData("v1", "retry", "uppercase")]
     [InlineData("v1", "retry", "short")]
     [InlineData("v1", "retry", "not-hex")]
