@@ -143,6 +143,16 @@ public interface IRfqExtractionExecutionRepository
         RfqExtractionExecutionWrite execution,
         RfqExtractionAttemptWrite attempt,
         CancellationToken cancellationToken = default);
+    // The returned CurrentDraft is the current persisted draft (possibly reviewed or replaced),
+    // never the original proposal to re-apply during a replay.
+    Task<RfqExtractionAtomicPersistenceResult> SaveKeyedAtomicAsync(
+        RfqExtractionExecutionWrite execution,
+        RfqExtractionAttemptWrite attempt,
+        RfqExtractionIdempotencyIdentity identity,
+        CancellationToken cancellationToken = default);
+    Task<RfqExtractionAtomicPersistenceResult?> FindKeyedAsync(
+        Guid tenantId, Guid quoteRequestId, RfqExtractionIdempotencyIdentity identity,
+        CancellationToken cancellationToken = default);
     Task<StoredRfqExtractionExecution> SaveAsync(RfqExtractionExecutionWrite write,
         CancellationToken cancellationToken = default);
     Task<RfqExtractionPersistenceResult> SaveAttemptAsync(RfqExtractionAttemptWrite write,
