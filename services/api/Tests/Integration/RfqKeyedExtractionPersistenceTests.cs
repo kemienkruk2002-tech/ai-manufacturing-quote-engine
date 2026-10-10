@@ -250,7 +250,7 @@ public sealed class RfqKeyedExtractionPersistenceTests(PostgresFixture db)
         await transaction.CommitAsync();
         var outcomes = await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(20));
         Assert.Single(outcomes, x => x.Result is not null);
-        var failure = Assert.Single(outcomes.Where(x => x.Error is not null)).Error;
+        var failure = Assert.Single(outcomes, x => x.Error is not null).Error;
         Assert.Contains(failure!.Errors, e => e.Code == "RFQ_EXTRACTION_IDEMPOTENCY_CONFLICT");
         Assert.Equal(1L, await AttemptsAsync(rfq));
         Assert.Equal(1L, await AuditsAsync(rfq));
