@@ -250,6 +250,17 @@ public sealed class RfqCanonicalReviewServiceV1Tests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        // Compile-only keyed contract adapter; this test exercises only canonical review.
+        public Task<RfqExtractionAtomicPersistenceResult> SaveKeyedAtomicAsync(
+            RfqExtractionExecutionWrite execution, RfqExtractionAttemptWrite attempt,
+            RfqExtractionIdempotencyIdentity identity, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<RfqExtractionAtomicPersistenceResult?> FindKeyedAsync(
+            Guid tenantId, Guid quoteRequestId, RfqExtractionIdempotencyIdentity identity,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<StoredRfqExtractionExecution> SaveAsync(
             RfqExtractionExecutionWrite write,
             CancellationToken cancellationToken = default) =>
