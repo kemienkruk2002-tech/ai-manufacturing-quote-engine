@@ -352,6 +352,17 @@ public sealed class RfqExtractionServiceV1Tests
                 new RfqExtractionPersistenceResult(storedAttempt, draft)));
         }
 
+        // Compile-only adapter: service wiring for keyed calls is a separate task.
+        public Task<RfqExtractionAtomicPersistenceResult> SaveKeyedAtomicAsync(
+            RfqExtractionExecutionWrite execution, RfqExtractionAttemptWrite attempt,
+            RfqExtractionIdempotencyIdentity identity, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<RfqExtractionAtomicPersistenceResult?> FindKeyedAsync(
+            Guid tenantId, Guid quoteRequestId, RfqExtractionIdempotencyIdentity identity,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<StoredRfqExtractionExecution> SaveAsync(
             RfqExtractionExecutionWrite write,
             CancellationToken cancellationToken = default)

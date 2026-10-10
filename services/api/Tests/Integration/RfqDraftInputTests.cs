@@ -11,9 +11,9 @@ namespace QuoteEngine.IntegrationTests;
 public sealed class RfqDraftInputTests(PostgresFixture db)
 {
     [Fact]
-    public async Task Migrations_one_through_ten_apply_from_scratch()
+    public async Task Migrations_one_through_twelve_apply_from_scratch()
     {
-        Assert.Equal(10L, await db.ScalarAsync<long>("SELECT count(*) FROM schema_migrations"));
+        Assert.Equal(12L, await db.ScalarAsync<long>("SELECT count(*) FROM schema_migrations"));
     }
 
     [Theory]
@@ -111,8 +111,10 @@ public sealed class RfqDraftInputTests(PostgresFixture db)
 
     private async Task ExecuteAsync(string sql, params (string Name, object Value)[] parameters)
     {
-        await using var command = db.DataSource.CreateCommand(sql);
-        foreach (var parameter in parameters) command.Parameters.AddWithValue(parameter.Name, parameter.Value);
+        await using var connection = await db.DataSource.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        foreach (var (name, value) in parameters)
+            command.Parameters.AddWithValue(name, value);
         await command.ExecuteNonQueryAsync();
     }
 }
