@@ -152,7 +152,14 @@ public sealed class RfqKeyedExtractionPersistenceTests(PostgresFixture db)
         await Repository.SaveAtomicAsync(execution, attempt);
         Assert.Equal(5L, await AttemptsAsync(rfq));
         Assert.Equal(5L, await AuditsAsync(rfq));
-        Assert.Equal(a, await Repository.FindKeyedAsync(PostgresFixture.TenantId, rfq, Key("same")));
+        var replay = await Repository.FindKeyedAsync(PostgresFixture.TenantId, rfq, Key("same"));
+        Assert.NotNull(replay);
+        Assert.Equal(a.Execution, replay.Execution);
+        Assert.Equal(a.Persistence.Attempt, replay.Persistence.Attempt);
+        // Later keys and even unkeyed saves can replace the current draft; replay
+        // must never reconstruct the original proposal.
+        Assert.Equal(await Repository.FindCurrentDraftAsync(PostgresFixture.TenantId, rfq),
+            replay.Persistence.CurrentDraft);
     }
 
     [Theory]
