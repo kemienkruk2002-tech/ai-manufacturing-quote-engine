@@ -2,7 +2,7 @@
 
 Status: ACTIVE
 Started: 2026-10-05
-Updated: 2026-10-09
+Updated: 2026-10-10
 Scope: backend-first. Do not start frontend until the backend gates below are complete.
 Source of truth: repository code/tests at the stated commits, [current status and task register](management/PROJECT_STATUS.md), [backend module audit](audits/BACKEND_MODULE_AUDIT_2026-10-09.md), [PR #27 audit](audits/PR_27_AUDIT_2026-10-09.md), and this plan. The 2026-10-05/06 audits are historical evidence, not current task instructions.
 
@@ -22,7 +22,7 @@ Development proceeds in small, independently testable increments. Each increment
 9. never mark a task DONE unless CI is green;
 10. after every completed milestone, perform a focused audit and generate the next small milestone.
 
-The Owner chooses and launches implementation models using the bounded GitHub tasks prepared by ASTRA. ASTRA does not automatically start workers. ASTRA reviews the submitted PRs, checks exact-commit test/CI evidence, identifies mistakes, requests corrections and integrates accepted results. Implementation and review remain separate. Every task has one owner, allowed scope, dependencies, evidence and a reviewer; see [PROJECT_STATUS](management/PROJECT_STATUS.md). Ready launch packets are schema task #34 (feature base) and independent API validation #31 (main base). Dependent H2 repairs stay ordered; main merges still require Owner approval.
+The Owner chooses and launches implementation models using the bounded GitHub tasks prepared by ASTRA. ASTRA does not automatically start workers. ASTRA reviews the submitted PRs, checks exact-commit test/CI evidence, identifies mistakes, requests corrections and integrates accepted results. Implementation and review remain separate. Every task has one owner, allowed scope, dependencies, evidence and a reviewer; see [PROJECT_STATUS](management/PROJECT_STATUS.md). Current ready packets are H2 service wiring #40 on the feature branch and mock FreeLLMAPI adapter #41 on main; main merges still require Owner approval.
 
 Frozen unless a failing test or versioned business rule requires a change:
 - TimeEngineV1
@@ -239,11 +239,12 @@ Ordered, separately reviewable repairs:
 
 1. restore the six original draft regression methods and helper, preserving the PR's migration count of 11 — completed in PR #33, merged only into the PR #27 branch;
 2. harden all-or-none identity and tenant-scoped audit linkage with database tests, preserving applied migration history — completed in PR #35 / #34, feature merge `f55c42d`, [post-merge CI 37970708382](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970708382): **939 PASS**;
-3. implement durable keyed repository save/lookup in Owner-launch task [#37](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/37), including same-key replay, different-hash conflict, coordinated concurrency, REVIEW_MANUAL and failure rollback. Replay after a later human correction must not reapply an older draft. Wire the extraction service in a separate task after repository acceptance.
+3. implement durable keyed repository save/lookup in [#37](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/37), including same-key replay, different-hash conflict, coordinated concurrency, REVIEW_MANUAL and rollback — completed in PR #38, feature merge `ca33240`, [post-merge CI 38080710662](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/38080710662): **953 PASS**;
+4. wire `RfqExtractionServiceV1` to preflight lookup and keyed terminal writes with explicit concurrent-replay response semantics — Owner-launch task [#40](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/40).
 
 Restoration alone does not finish H2. Follow [PROJECT_STATUS](management/PROJECT_STATUS.md) for exact repair commits, independent review and CI. Do not promise exactly-once external provider calls without a separately designed and tested execution contract.
 
-Restoration from [PR #33](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/33) is merged only into the existing PR #27 branch as `c4ef0643379879e1fabcf7a458725ee5b9e817f8`. Repair commit `ea1e5957272df3f664861e4e4b6342b14e98c2bc` passed independent QA review and [CI 37966082743](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966082743): **683 unit + 232 integration = 915 PASS**, zero failed/skipped. Post-merge [PR CI 37966270514](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966270514) and [push CI 37966262994](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966262994) both succeeded. At that restoration checkpoint main was `cc0aaca`, 910 PASS. Schema PR #35 is now integrated as recorded above; repository idempotency #37 and later service wiring remain open.
+Restoration from PR #33 and schema repair PR #35 remain preserved in the existing PR #27 branch. Repository idempotency PR #38 was independently accepted at `504a07c`; ASTRA reran the full PostgreSQL suite locally (953 PASS) before integrating it as `ca33240`. Post-merge PR and push CI both succeeded. Service wiring #40 remains open; exactly-once external provider execution is not claimed.
 
 ### B3.H3 Tenant extraction HTTP endpoint — WAITING_FOR_B3.H2
 - tenant-authorized endpoint for explicit model, allow_external_ai and exact source selections only;
@@ -256,9 +257,9 @@ Restoration from [PR #33](https://github.com/kemienkruk2002-tech/ai-manufacturin
 
 Blocked deployment decisions from the audit remain B3.B1 approved redaction policy/implementation and B3.B2 supported source-materialization formats/parsers; do not invent them.
 
-### FreeLLMAPI adapter / optional LIVE — BLOCKED_PROVIDER_IDENTITY / #30
+### FreeLLMAPI adapter / optional LIVE — ADAPTER READY, LIVE BLOCKED / #30
 
-[Issue #30](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/30) and the [provider audit](audits/FREELLMAPI_AUDIT_2026-10-09.md) separate mock adapter work from optional manual LIVE tests. The user's provider instance, API base URL and available model remain unverified. No adapter/provider selection or LIVE result is claimed. Confirm the documentation/dashboard identity before finalizing the adapter contract; LIVE additionally requires an approved scope/budget and runtime secret configuration. Preserve OpenAI, `IAiStructuredProvider`, the output guard, default-deny policy, approved redaction/materializer seams and existing fingerprint contracts.
+[Issue #30](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/30) and the [provider audit](audits/FREELLMAPI_AUDIT_2026-10-09.md) separate adapter work from optional LIVE tests. ASTRA verified the Owner's healthy loopback Docker instance, pinned upstream image/commit, `/v1/responses` and JSON Schema translation. [#41](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/41) is ready for configurable provider selection and mock security/contract tests. LIVE remains blocked because no serving model is enabled and no synthetic limit is approved. Preserve OpenAI, `IAiStructuredProvider`, output guard, default-deny policy, redaction/materializer seams and fingerprint contracts.
 
 ## Milestone B4 — RFQ file security
 
