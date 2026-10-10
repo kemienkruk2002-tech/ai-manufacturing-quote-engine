@@ -2,8 +2,11 @@
 
 Status: ACTIVE
 Started: 2026-10-05
+Updated: 2026-10-10
 Scope: backend-first. Do not start frontend until the backend gates below are complete.
-Source of truth: repository code/tests + docs/PROJECT_AUDIT_2026-10-05.md + this file.
+Source of truth: repository code/tests at the stated commits, [current status and task register](management/PROJECT_STATUS.md), [backend module audit](audits/BACKEND_MODULE_AUDIT_2026-10-09.md), [PR #27 audit](audits/PR_27_AUDIT_2026-10-09.md), and this plan. The 2026-10-05/06 audits are historical evidence, not current task instructions.
+
+Verified main after Owner-approved PR #36: `ce00d06b15a81cbd8bec65ff25c89a089a6e14ad`, [CI 37970757483](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970757483), **678 unit + 258 integration = 936/936 PASS**. B3.H1 is merged; B3.H2 is already in progress in PR #27. Do not create a duplicate H2 implementation branch from main. Main merges require explicit Owner approval; green CI alone is not authorization.
 
 ## Operating model
 
@@ -18,6 +21,8 @@ Development proceeds in small, independently testable increments. Each increment
 8. update DEVELOPMENT_STATE.md;
 9. never mark a task DONE unless CI is green;
 10. after every completed milestone, perform a focused audit and generate the next small milestone.
+
+The Owner chooses and launches implementation models using the bounded GitHub tasks prepared by ASTRA. ASTRA does not automatically start workers. ASTRA reviews the submitted PRs, checks exact-commit test/CI evidence, identifies mistakes, requests corrections and integrates accepted results. Implementation and review remain separate. Every task has one owner, allowed scope, dependencies, evidence and a reviewer; see [PROJECT_STATUS](management/PROJECT_STATUS.md). Current ready packets are H2 service wiring #40 on the feature branch and mock FreeLLMAPI adapter #41 on main; main merges still require Owner approval.
 
 Frozen unless a failing test or versioned business rule requires a change:
 - TimeEngineV1
@@ -97,7 +102,7 @@ After H1:
 - keep `/health` and `/openapi/v1.json` public intentionally;
 - metadata/integration tests and full CI.
 
-### B1.H3 GitHub branch/CI guardrails — DONE (external admin blocker #8)
+### B1.H3 GitHub branch/CI guardrails — PARTIAL (external admin blocker #8)
 
 When repository-admin tooling supports it:
 - require CI before merge to `main`;
@@ -106,6 +111,8 @@ When repository-admin tooling supports it:
 - retain read-only default workflow permissions.
 
 If branch-protection mutation is unsupported, document it as an external configuration blocker and continue.
+
+The workflow is named `Quote Engine CI` and retains `contents: read`. Protection is not complete: the 2026-10-09 inventory found `main` unprotected and no rulesets; the detailed protection read returned integration HTTP 403. Reuse [#8](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/8) for required `test`, force-push and deletion protection. No repository settings were changed by the audit.
 
 ### B1 blocked deployment follow-up — production identity provider
 
@@ -152,7 +159,11 @@ B2.2 specifies creation of a draft RFQ. Creation is now constrained to `New`; ex
 ### B2 audit — DONE
 Audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
 
-PR #14 merged as `2762f8998a7c8dd4e6c871b731d1fac40b7decdb`; post-merge main run `37424238234` is green. DB/API/replay/tenant-isolation evidence is recorded. B2.3 and B2.4b remain explicit business blockers. B2.H2 is the next unblocked hardening task.
+PR #14 merged as `2762f8998a7c8dd4e6c871b731d1fac40b7decdb`; post-merge main run `37424238234` is green. DB/API/replay/tenant-isolation evidence is recorded. B2.H2 was subsequently completed; B2.3 and B2.4b remain explicit business blockers.
+
+### RFQ create/update validation — DONE / #31
+
+[Issue #31](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/31) is complete through PR #36: known invalid RFQ fields now produce typed safe 400 responses; unrelated `ArgumentException` remains a sanitized 500. ASTRA independently reviewed `899a19b`, reproduced 936 passing tests locally and verified exact-commit CI. Owner-approved main merge `ce00d06` passed [post-merge CI 37970757483](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970757483): **678 unit + 258 integration = 936 PASS**, zero failed/skipped. Authorization ordering, draft conflict behavior and existing business rules remain intact.
 
 ## Milestone B3 — AI RFQ extraction wired end-to-end
 
@@ -201,7 +212,7 @@ Implemented in PR #21. Repaired implementation head `afd561f146df0e81124c3883286
 ### B3.6 Review/confirmation backend — DONE
 - confirm/reject/correct extracted fields;
 - every correction records actor/source/reason;
-- critical unresolved CONFLICT/MISSING blocks progression.
+- report unresolved CONFLICT/MISSING and latest REJECT blockers; business-critical fields and RFQ lifecycle progression remain B2.3 decisions.
 
 Implemented in PR #23. Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` passed run `37446537854`; repaired final runtime/test head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`: **678 unit + 229 integration = 907/907 PASS**. Review is tenant-scoped, optimistic-concurrency protected, and atomically audited in existing append-only `audit_events`. `CORRECT` replaces one whole CanonicalRFQ fact and reuses the existing v1 output guard. The backend reports unresolved MISSING/CONFLICT plus latest REJECT blockers but does not change RFQ status. The repository does not define which fields are business-critical for lifecycle progression; that decision remains part of the explicit B2.3 workflow-policy blocker rather than being invented here.
 
@@ -217,19 +228,38 @@ B3.1-B3.6 are functionally complete and green. The focused audit produced the fo
 
 Implemented in PR #26. Verified implementation head `893ea9881b92f2820556447da93b0d1ade2aa361` passed run `37459976159`; final PR head `3c650425a9fa859c9d1326da8e421680140d6ee6` passed run `37460159157`; merge `403a55f4b3b5825e568d1bfd7437f94807354790`; post-merge main run `37460318985` passed **678 unit + 232 integration = 910/910 PASS**. `RfqExtractionServiceV1` now uses one atomic repository write for execution audit + immutable attempt + optional current draft. Forced PostgreSQL draft-write failure proves rollback of earlier audit/attempt inserts. No migration or business/provider policy changed.
 
-### B3.H2 Extraction retry/idempotency contract — READY after B3.H1
+### B3.H2 Extraction retry/idempotency contract — IN_PROGRESS / #29 / existing PR #27
 - versioned deterministic idempotency boundary for retried/concurrent identical extraction requests;
 - same key cannot double-apply current draft;
 - different keys remain distinct attempts.
 
-### B3.H3 Tenant extraction HTTP endpoint — READY after B3.H1/H2
+[Issue #29](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/29) tracks repairs to [PR #27](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/27). At audited head `c50596ef8826e1f53b7682baf0558586e9b5008c`, [CI 37519559807](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37519559807) passed **683 unit + 224 integration = 907**, but the identity helper has no production caller, schema constraints permit partial identity, the audit pointer is not tenant-scoped and six RFQ draft test methods (eight cases) are missing. Green CI at that head is not H2 acceptance.
+
+Ordered, separately reviewable repairs:
+
+1. restore the six original draft regression methods and helper, preserving the PR's migration count of 11 — completed in PR #33, merged only into the PR #27 branch;
+2. harden all-or-none identity and tenant-scoped audit linkage with database tests, preserving applied migration history — completed in PR #35 / #34, feature merge `f55c42d`, [post-merge CI 37970708382](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970708382): **939 PASS**;
+3. implement durable keyed repository save/lookup in [#37](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/37), including same-key replay, different-hash conflict, coordinated concurrency, REVIEW_MANUAL and rollback — completed in PR #38, feature merge `ca33240`, [post-merge CI 38080710662](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/38080710662): **953 PASS**;
+4. wire `RfqExtractionServiceV1` to preflight lookup and keyed terminal writes with explicit concurrent-replay response semantics — Owner-launch task [#40](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/40).
+
+Restoration alone does not finish H2. Follow [PROJECT_STATUS](management/PROJECT_STATUS.md) for exact repair commits, independent review and CI. Do not promise exactly-once external provider calls without a separately designed and tested execution contract.
+
+Restoration from PR #33 and schema repair PR #35 remain preserved in the existing PR #27 branch. Repository idempotency PR #38 was independently accepted at `504a07c`; ASTRA reran the full PostgreSQL suite locally (953 PASS) before integrating it as `ca33240`. Post-merge PR and push CI both succeeded. Service wiring #40 remains open; exactly-once external provider execution is not claimed.
+
+### B3.H3 Tenant extraction HTTP endpoint — WAITING_FOR_B3.H2
 - tenant-authorized endpoint for explicit model, allow_external_ai and exact source selections only;
 - no implicit latest files, actor identity, price/cost/time fields or workflow transition.
 
-### B3.H4 AI/review OpenAPI coverage — READY after B3.H3
-- add custom OpenAPI metadata for extraction and canonical review/readiness/history operations.
+### B3.H4 RFQ/AI/review OpenAPI coverage — WAITING_FOR_B3.H3
+- add custom OpenAPI metadata for extraction and canonical draft/review/readiness/history operations;
+- include existing B2 RFQ create/get/list/draft-update/file-manifest routes currently missing from the schema;
+- test coverage against registered production operations while excluding dev-only routes. Standard auth security-scheme metadata still depends on the identity-provider decision.
 
 Blocked deployment decisions from the audit remain B3.B1 approved redaction policy/implementation and B3.B2 supported source-materialization formats/parsers; do not invent them.
+
+### FreeLLMAPI adapter / optional LIVE — ADAPTER READY, LIVE BLOCKED / #30
+
+[Issue #30](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/30) and the [provider audit](audits/FREELLMAPI_AUDIT_2026-10-09.md) separate adapter work from optional LIVE tests. ASTRA verified the Owner's healthy loopback Docker instance, pinned upstream image/commit, `/v1/responses` and JSON Schema translation. [#41](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/41) is ready for configurable provider selection and mock security/contract tests. LIVE remains blocked because no serving model is enabled and no synthetic limit is approved. Preserve OpenAI, `IAiStructuredProvider`, output guard, default-deny policy, redaction/materializer seams and fingerprint contracts.
 
 ## Milestone B4 — RFQ file security
 

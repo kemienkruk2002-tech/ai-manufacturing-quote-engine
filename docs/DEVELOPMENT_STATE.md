@@ -1,15 +1,49 @@
 # Development State
 
+Updated: 2026-10-10
+Mode: Owner launches implementation models from GitHub tasks; ASTRA prepares briefs, reviews results and coordinates integration. ASTRA does not automatically launch workers.
+
+## Current synopsis — 2026-10-10
+
+This is the only current synopsis in this file. The collapsed log below preserves previous milestones, commits and test evidence; its task-selection and merge instructions are inactive. The shared [PROJECT_STATUS](management/PROJECT_STATUS.md) and GitHub issues are the live task/agent register. Main merges require explicit Owner approval.
+
+| Scope | Verified state / next action |
+| --- | --- |
+| Main baseline | Owner-approved PR #36 merge `ce00d06b15a81cbd8bec65ff25c89a089a6e14ad`; [CI 37970757483](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970757483), **678 unit + 258 integration = 936/936 PASS**, zero failed/skipped. Independent local PostgreSQL 16.15 validation of the reviewed PR confirmed the same result. |
+| B1 | API errors, tenant/auth boundary and route-group guardrails exist. Production identity is undecided and fail-closed. B1.H3 is **PARTIAL**, with main branch protection still open in [#8](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/8). |
+| B2 | Customers/contacts model/repositories, RFQ draft create/read/list/update, optimistic concurrency and file manifest are implemented. B2.3 transition/readiness and B2.4b post-analysis revision rules remain **BLOCKED_BUSINESS_POLICY**. Customer/contact HTTP and full lifecycle are absent. |
+| B3.1–B3.6 / H1 | Internal extraction, attempts/current draft and review backend are implemented. **H1 is merged** in PR #26 (`403a55f4b3b5825e568d1bfd7437f94807354790`): audit + attempt + optional draft use one transaction. Review readiness reports blockers without advancing RFQ status or inventing critical-field rules. |
+| B3.H2 | **IN_PROGRESS**, existing [PR #27](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/27), tracked by [#29](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/29). Regression restoration, schema hardening and keyed repository replay/concurrency are integrated. Current feature `ca33240` passed [CI 38080710662](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/38080710662): **683 unit + 270 integration = 953 PASS**; ASTRA independently reproduced the same total locally. Remaining task [#40](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/40) wires the service to the accepted contract. |
+| Independent RFQ validation | [#31](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/31) delivered in [PR #36](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/36): ASTRA accepted `899a19b`, local and PR CI **936 PASS**. Owner explicitly approved its main merge `ce00d06`; [post-merge CI](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37970757483) passed 936 tests, zero failed/skipped; #31 is DONE. No global ArgumentException-to-400 mapping. |
+| FreeLLMAPI | Provider identity and local endpoint are verified. [#41](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/41) is **READY** for the configurable mock-tested Responses adapter. LIVE is **BLOCKED_MODEL_AND_SCOPE** because the local router has no enabled serving model and no approved synthetic limit. Existing OpenAI and default-deny remain in force. |
+| B3.H3 / H4 | Extraction HTTP waits for H2. OpenAPI then covers extraction and canonical review routes plus the omitted B2 create/get/list/draft/manifest operations. |
+| B4–B6 / frontend | Upload security and calculation HTTP remain unfinished; Quote/QuoteVersion/approval contracts are absent. Frontend stays gated until B1–B5 are complete and B6 contracts stable. |
+
+The first H2 repair restored six RFQ draft methods/eight cases. Schema task #34 is integrated through PR #35. Repository task #37 is integrated through [PR #38](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/38), merge `ca33240a05aacd155becbb33d8d81fb6d815db0a`: durable keyed save/lookup, changed-hash conflict, current-draft replay, rollback, cancellation and PostgreSQL concurrency are accepted. Remaining ordered work is Owner-launch [#40](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/issues/40), then final H2 documentation/review and explicit Owner approval for main. Do not restart H2 from main or duplicate PR #27.
+
+The first repair, [PR #33](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/pull/33), is **MERGED_TO_FEATURE** only, into the PR #27 branch as `c4ef0643379879e1fabcf7a458725ee5b9e817f8`. Repair commit `ea1e5957272df3f664861e4e4b6342b14e98c2bc` passed independent QA review and [CI 37966082743](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966082743): **683 unit + 232 integration = 915 PASS**, zero failed/skipped. Post-merge [PR CI 37966270514](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966270514) and [push CI 37966262994](https://github.com/kemienkruk2002-tech/ai-manufacturing-quote-engine/actions/runs/37966262994) both succeeded. At that restoration checkpoint main was `cc0aaca`, 910 PASS. Current main after PR #36 is recorded above; H2 is still IN_PROGRESS.
+
+Remaining decisions/resources: production identity/claims; RFQ transitions, readiness and analysis-lock/revision policy; approved AI allowlists/redaction and supported source parsers; commercial pricing/margin/approval rules; representative STEP fixtures. These block their own scopes, not independent technical repairs. Frozen engines, canonical hashes/replay, CanonicalRFQ v1 and immutable migration/history contracts remain unchanged.
+
+Evidence: [backend module/API audit](audits/BACKEND_MODULE_AUDIT_2026-10-09.md), [independent PR #27 audit](audits/PR_27_AUDIT_2026-10-09.md), [FreeLLMAPI audit](audits/FREELLMAPI_AUDIT_2026-10-09.md). Detailed dependencies and acceptance criteria: [AUTONOMOUS_BACKEND_PLAN](AUTONOMOUS_BACKEND_PLAN.md). This documentation update did not run the full suite or invoke live AI.
+
+## Historical implementation log — inactive instructions
+
+<details>
+<summary>Prior checkpoints and evidence (superseded by the current synopsis)</summary>
+
+All entries below describe their original checkpoint. Counts belong to their recorded commits, and old READY/DONE statements may have been superseded. Any instruction to select a next task, wait for a historical CI run or merge a PR is retained only as history and grants no current authorization.
+
 Updated: 2026-10-06
 Mode: autonomous backend-first development
 
-## Baseline
+### Historical baseline
 - Current verified main CI after B3.4: **671 unit + 215 integration = 886/886 passed**.
 - B3.4 merge: `eda1601deddd9e640a756d1e8637733687c501f6`; post-merge run `37435364172` succeeded.
 - Frozen deterministic engines/snapshots/hashes/replay and existing migration history remain unchanged.
 - B2 focused audit: `docs/B2_RFQ_BACKEND_AUDIT_2026-10-06.md`.
 
-## Current milestone
+### Historical milestone
 **B2 — Real RFQ backend / audited hardening complete except explicit business blockers**
 
 ### B2.3 RFQ deterministic state machine — BLOCKED_BUSINESS_POLICY
@@ -35,7 +69,7 @@ PR #16; implementation head `a18b20934ed5ce62e2da704c2c5d2a022bfde749` passed ru
 
 RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` status is rejected by both the API and repository create boundary; no later transition policy was defined.
 
-## Known blockers
+### Historical blockers
 - B2.3: RFQ transition/readiness business policy missing.
 - B2.4b: post-analysis revision semantics depend on the undefined B2.3 lifecycle boundary.
 - Production identity provider: deployment decision missing; production auth remains fail-closed.
@@ -43,7 +77,7 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 - Geometry golden work: representative STEP fixtures/expected outputs missing.
 - Repository is public; no confidential customer/production data may be committed.
 
-## Completed work
+### Historical completed-work snapshot
 - B1 foundation/hardening complete; see B1 audit/history.
 - B2.1 customer/contact model: DONE, PR #10, 816/816 PASS.
 - B2.2 RFQ create/read/list: DONE, PR #11, merge `a3e78077b25f1396f2931b8d3707a071dc075065`, post-merge 820/820 PASS.
@@ -53,7 +87,7 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 - B2 focused audit: DONE, PR #14.
 - B2.H2 draft-only RFQ creation guard: DONE, PR #16, merge `530383cb1b9ae9f98e5a13f2b22757c6a6852ac5`, post-merge 841/841 PASS.
 
-## Current run findings
+### Historical run findings
 - Re-read current main plus AUTONOMOUS_BACKEND_PLAN.md, DEVELOPMENT_STATE.md and PROJECT_AUDIT_2026-10-05.md before work.
 - Verified the prior state-only main commit `0e837b7b12d2052be9942cc0633b9a66cf0d4fcf` first; run `37424813843` succeeded.
 - Selected exactly B2.H2, the smallest unblocked READY backend task from the B2 audit.
@@ -68,11 +102,11 @@ RFQ creation now accepts only omitted/explicit `New`. Every explicit non-`New` s
 - No migration, transition graph, readiness/approval policy, deterministic engine, canonical snapshot/hash/replay behavior, immutable history or tenant-isolation contract changed.
 - No frontend work started.
 
-## CI state
+### Historical CI state
 - Verified runtime main: **GREEN**, merge `530383cb1b9ae9f98e5a13f2b22757c6a6852ac5`, run `37426370315`, **841/841 PASS**.
 - This commit only records final B2.H2 state and must itself pass GitHub Actions before the next backend task starts.
 
-## Current milestone
+### Historical milestone
 **B3 — AI RFQ extraction wired end-to-end**
 
 ### B3.1 AI configuration + DI — DONE
@@ -80,7 +114,7 @@ Branch: `auto/b3-1-ai-config-di`.
 
 Scope: register the existing OpenAI Responses provider, retry wrapper and AiGatewayV1 behind validated server-side configuration; configure HttpClient through IHttpClientFactory; require API credentials only when AI is enabled; allow AI to remain disabled without constructing provider services. No extraction endpoint or B3.2 normalization work is included.
 
-## Current run findings
+### Historical run findings
 - Verified the preceding main state commit `f2f78ea367c185b523356f6ff2f61e6c74d2876f` first; run `37426572654` completed successfully with **841/841 PASS**.
 - Confirmed there were no open PRs or pending prior tasks before starting B3.1.
 - Reviewed the existing `OpenAiResponsesProviderV1`, retry wrapper, gateway, host composition root and AI unit tests.
@@ -94,7 +128,7 @@ Scope: register the existing OpenAI Responses provider, retry wrapper and AiGate
 - Added host integration tests for disabled fail-closed behavior, enabled DI graph/client configuration, missing-key rejection, HTTPS validation, retry-delay validation and disabled-mode tolerance of unused provider settings.
 - Updated README with the server-side configuration contract. No AI extraction endpoint, B3.2 normalization, persistence, deterministic calculation engine, canonical snapshot/hash/replay, migrations, immutable histories or tenant isolation was changed.
 
-## CI state
+### Historical CI state
 - Implementation is published on `auto/b3-1-ai-config-di`.
 - Initial PR head `afd8e33072dbd0bf9f8a9b92c1a4884d5d4da966` failed run `37427440602` at compile time only: CS0123 on method-group projection to `TimeSpan.FromMilliseconds`.
 - Fixed only that concrete build error with an explicit `delay => TimeSpan.FromMilliseconds(delay)` projection.
@@ -109,7 +143,7 @@ Branch: `auto/b3-2-ai-input-normalization`.
 
 Scope: add one deterministic normalization boundary for supported JSON before AI request fingerprinting, prove equivalent supported object inputs are byte-identical/fingerprint-identical, preserve array order and value types, and do not change CanonicalRFQ v1 or provider output schema.
 
-## Current run findings
+### Historical run findings
 - Verified the preceding state-only main commit `cd5a7dc634f0f1ad11b2040f78af7d0c41df196b` first; run `37428554033` completed successfully.
 - Started exactly B3.2 on `auto/b3-2-ai-input-normalization`.
 - Reviewed the current request validation, fingerprint and prompt compilation paths. Before B3.2, all three accepted valid JSON but fingerprinting hashed the caller's original JSON bytes, so whitespace/property-order differences produced different fingerprints.
@@ -122,14 +156,14 @@ Scope: add one deterministic normalization boundary for supported JSON before AI
 - Added focused unit coverage for recursive property ordering, whitespace, nested objects in arrays, equivalent numeric lexemes, array-order significance, value-type significance, duplicate-property rejection and equivalent prompt output.
 - CanonicalRFQ v1 output schema/guard is unchanged. No provider policy, endpoint, persistence, pricing, workflow, deterministic calculation engine, canonical calculation snapshot/hash/replay, migration, immutable history or tenant isolation behavior changed.
 
-## CI state
+### Historical CI state
 - B3.2 implementation is published on `auto/b3-2-ai-input-normalization`.
 - Verified PR #18 head `b0f631d9bd375e62e58c42dcc61272537c279f99` is **GREEN** in run `37429166917`: **652/652 unit + 206/206 integration = 858/858 PASS**.
 - Final PR #18 head `3aeafbd0e6b7de06d0adc280fb62ddfb4f61f53b` passed run `37429341570`: **858/858 PASS**.
 - PR #18 merged as `470f87a2a3e11431f377940de43549535fd62c46`.
 - Post-merge main run `37429487560` passed **652/652 unit + 206/206 integration = 858/858 PASS**.
 
-## CI state
+### Historical CI state
 - PR #18 final head `3aeafbd0e6b7de06d0adc280fb62ddfb4f61f53b`: **GREEN**, run `37429341570`, **858/858 PASS**.
 - Merge `470f87a2a3e11431f377940de43549535fd62c46`: post-merge `main` run `37429487560` **GREEN**, **858/858 PASS**.
 - State-sync main commit `2378fad41a59079c295b7ad4aaea20ac233609cc`: run `37429665374` **GREEN**, **652/652 unit + 206/206 integration = 858/858 PASS**.
@@ -140,7 +174,7 @@ Branch: `auto/b3-3-ai-execution-policy`.
 
 Scope: add a default-deny external-AI policy boundary around the existing gateway. The policy will require an explicit per-execution `allow_external_ai` flag plus configured allowlists for use case/model/document type and an explicitly configured positive payload limit. It will expose a redaction seam and deterministic REVIEW/MANUAL outcomes for policy/redaction/provider failures. No allowlist entries, payload limit, redaction rules, endpoint, persistence or business workflow will be invented.
 
-## Current run findings
+### Historical run findings
 - Verified final B3.2 state commit `66f785c3fac9016c65a33353637d6691116da0a0` first; run `37429863910` completed successfully with **858/858 PASS**.
 - Confirmed there were no open PRs before starting B3.3.
 - Primary-source review: OWASP recommends allowlist validation, bounded input, separation of untrusted content and treating model output as untrusted; OpenAI documents that API customer content may appear in default abuse-monitoring logs. These findings are recorded in ADR 002.
@@ -155,20 +189,20 @@ Scope: add a default-deny external-AI policy boundary around the existing gatewa
 - Added `docs/adr/002-external-ai-execution-policy.md` and README deployment documentation.
 - No B3.4 endpoint/service/persistence, CanonicalRFQ v1 schema, deterministic calculation engine, snapshot/hash/replay, migration, immutable history, tenant isolation, pricing, workflow or approval policy changed.
 
-## CI state
+### Historical CI state
 - B3.3 implementation is published on `auto/b3-3-ai-execution-policy`.
 - Verified PR #19 implementation head `5b7f8145f55d0bb5f9ee052ff724191dbe959328` is **GREEN** in run `37432555854`: **664/664 unit + 210/210 integration = 874/874 PASS**.
 - Final PR #19 head `280e39be406b891855df583ac7c12f84d1a5cf8c` passed run `37432765264`: **874/874 PASS**.
 - PR #19 merged as `b6ad030f5c4dc2f909bf809c14d870a4180b3627`.
 - Post-merge main run `37432937882` passed **664/664 unit + 210/210 integration = 874/874 PASS**.
 
-## CI state
+### Historical CI state
 - PR #19 final head `280e39be406b891855df583ac7c12f84d1a5cf8c`: **GREEN**, run `37432765264`, **874/874 PASS**.
 - Merge `b6ad030f5c4dc2f909bf809c14d870a4180b3627`: post-merge `main` run `37432937882` **GREEN**, **664/664 unit + 210/210 integration = 874/874 PASS**.
 - State-sync main commit `3ed6c042d779c0635e4d94ef518ccb3d39b7dff7` passed run `37433105161`: **664/664 unit + 210/210 integration = 874/874 PASS**.
 - This final documentation-only commit records that verified state and must itself be checked before the next backend task starts.
 
-## Current run findings
+### Historical run findings
 ### B3.4 RFQ extraction service — DONE
 Branch: `auto/b3-4-rfq-extraction-service`.
 
@@ -189,14 +223,14 @@ Branch: `auto/b3-4-rfq-extraction-service`.
 - Added Host integration coverage proving the extraction service resolves through DI and the default source materializer fails closed before external AI.
 - No migration was added; existing migration history remains unchanged. No endpoint, B3.5 draft/history persistence, CanonicalRFQ v1 contract, final cost/time/price fields, calculation engines, snapshot/hash/replay, RFQ workflow or approval policy changed.
 
-## CI state
+### Historical CI state
 - B3.4 implementation is published on `auto/b3-4-rfq-extraction-service`.
 - Verified PR #20 implementation head `cf8b2f9ffe85a17be7c7d8914c41dc71cea7c5a7` is **GREEN** in run `37435066563`: **671/671 unit + 215/215 integration = 886/886 PASS**.
 - Final PR #20 head `0f8e9752864ccc0244c055518e460bf727a46457` passed run `37435238467`: **886/886 PASS**.
 - PR #20 merged as `eda1601deddd9e640a756d1e8637733687c501f6`.
 - Post-merge main run `37435364172` passed **671/671 unit + 215/215 integration = 886/886 PASS**.
 
-## CI state
+### Historical CI state
 - PR #20 final head `0f8e9752864ccc0244c055518e460bf727a46457`: **GREEN**, run `37435238467`, **886/886 PASS**.
 - Merge `eda1601deddd9e640a756d1e8637733687c501f6`: post-merge `main` run `37435364172` **GREEN**, **671/671 unit + 215/215 integration = 886/886 PASS**.
 - This documentation-only state update must itself pass GitHub Actions before the next backend task starts.
@@ -204,7 +238,7 @@ Branch: `auto/b3-4-rfq-extraction-service`.
 ### B3.5 Persist CanonicalRFQ draft — DONE
 Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 
-## Current run findings
+### Historical run findings
 - Re-read current `main`, `docs/AUTONOMOUS_BACKEND_PLAN.md`, `docs/DEVELOPMENT_STATE.md` and `docs/PROJECT_AUDIT_2026-10-05.md`.
 - Verified final B3.4 state-only main commit `daae79cc97f0bf69745678f95339c874e78ddd0f`; run `37439766594` is GREEN with **671 unit + 215 integration = 886/886 PASS**.
 - Found existing open PR #21 for B3.5 and inspected it before starting any new work. Its head `b97babed20c846c1cf9f0284be54574d714ea81b` failed run `37437143687`.
@@ -221,13 +255,13 @@ Branch: `auto/b3-5-canonical-rfq-draft`. PR #21.
 - Added PostgreSQL integration coverage for raw output and lineage retention, explicit MISSING/CONFLICT preservation, current-draft row-version replacement, REVIEW_MANUAL non-overwrite, invalid CanonicalRFQ rejection, immutable attempt history, same-RFQ source-attempt FK, and tenant/RFQ scoping.
 - No B3.6 review/correction API, RFQ workflow transition, pricing, calculation engine, canonical calculation snapshot/hash/replay, geometry or frontend behavior changed.
 
-## CI state
+### Historical CI state
 - Repaired implementation head `afd561f146df0e81124c38832860d8a54eb6116e` passed run `37441176622`: **896/896 PASS**.
 - Final PR #21 head `96097df9ad34d25bcb616e319443ed1067f8e6c7` passed run `37441377856`: **896/896 PASS**.
 - PR #21 merged as `7fddfcf4c3936b12f8d3255a3b27520cb7852552`.
 - Post-merge main run `37441538770` passed **674/674 unit + 222/222 integration = 896/896 PASS**.
 
-## CI state
+### Historical CI state
 - PR #21 final head `96097df9ad34d25bcb616e319443ed1067f8e6c7`: **GREEN**, run `37441377856`, **896/896 PASS**.
 - Merge `7fddfcf4c3936b12f8d3255a3b27520cb7852552`: post-merge `main` run `37441538770` **GREEN**, **674/674 unit + 222/222 integration = 896/896 PASS**.
 - State-sync commit `a79ebdcfa8139a43a49d29b95557dc3995852ae2` exposed one unrelated pre-existing flaky host-startup assertion in run `37441740738`: B3.5 unit suite stayed **674/674 PASS**, while `Negative_policy_payload_limit_fails_startup_validation` received `ObjectDisposedException` from `WebApplicationFactory` instead of the options-validation text.
@@ -241,7 +275,7 @@ Branch: `auto/b3-6-review-confirmation`.
 
 Scope is limited to backend operations for explicit human review of the current CanonicalRFQ draft. No RFQ status transition or B2.3 workflow policy is defined by this task.
 
-## Current run findings
+### Historical run findings
 - Re-read current `main`, `docs/AUTONOMOUS_BACKEND_PLAN.md`, `docs/DEVELOPMENT_STATE.md` and `docs/PROJECT_AUDIT_2026-10-05.md`.
 - Verified final state-only main commit `01a3b4ebeb531eff0dcdbf5ab8cfd998b6ee965c`; run `37442379022` completed successfully with **674 unit + 222 integration = 896/896 PASS**.
 - Confirmed there were no open PRs or pending prior tasks before starting B3.6.
@@ -260,7 +294,7 @@ Scope is limited to backend operations for explicit human review of the current 
 - Added API integration tests for authenticated actor capture, history, 409 stale review, readiness without RFQ status mutation, valid correction and invalid correction rejection.
 - No migration, pricing, margin, workflow transition, geometry, calculation engine, canonical calculation snapshot/hash/replay or frontend behavior was changed.
 
-## CI state
+### Historical CI state
 - Implementation head `c5c67d55528f59dcb9fe80805cf2efe8a0b6f36b` is **GREEN** in run `37446537854`: **907/907 PASS**.
 - Focused review removed a competing parallel review-store/migration implementation before that verified head. The PR now contains one review model only: current CanonicalRFQ draft + existing immutable `audit_events`.
 - Focused review also confirmed that no repository policy identifies which CanonicalRFQ fields are business-critical for RFQ lifecycle progression. B3.6 therefore reports all unresolved MISSING/CONFLICT facts as review blockers but does not claim that all are lifecycle-critical and never changes RFQ status. Actual progression policy remains blocked by B2.3.
@@ -269,7 +303,7 @@ Scope is limited to backend operations for explicit human review of the current 
 - Repaired head `65c0b6b35acc31c92fc0a15d3d999092d823b998` passed run `37447086613`: **678/678 unit + 229/229 integration = 907/907 PASS**.
 - Current head contains only plan/state documentation after that verified repaired head and must also pass GitHub Actions before merge.
 
-## Exact next task
+### Historical next-task instruction — INACTIVE
 Inspect GitHub Actions for the exact current PR #23 head. If green, merge PR #23 and verify post-merge `main` CI. After B3.6 is fully merged and green, perform the required focused **B3 milestone audit** in this run, record findings and split follow-ups; do not start B4 or frontend in this run.
 
 
@@ -287,7 +321,7 @@ Branch: `auto/b3-h1-atomic-extraction-persistence`.
 - No migration, provider policy, redaction policy, source parser, RFQ workflow, pricing, calculation engines, canonical calculation snapshot/hash/replay or frontend behavior changed.
 - B3 audit hardening tasks H1-H4 were copied into `AUTONOMOUS_BACKEND_PLAN.md`; H2 remains READY only after H1 is fully green/merged.
 
-## CI state
+### Historical CI state
 - Initial head `c13ea9889673badd60d84c6811b6a683b5ce15a4` failed run `37459576977` only because the new integration test missed the `Npgsql` namespace import.
 - Head `8e8b6960123dc711641b1a86f7dce840dd49c3c0` then reached the rollback test, which exposed a test-setup SQL quoting bug before exercising H1 runtime.
 - Replaced that setup with a temporary PostgreSQL `CHECK (false) NOT VALID` constraint on current-draft writes; runtime implementation was unchanged by this test fix.
@@ -296,5 +330,7 @@ Branch: `auto/b3-h1-atomic-extraction-persistence`.
 - PR #26 merged as `403a55f4b3b5825e568d1bfd7437f94807354790`.
 - Post-merge main run `37460318985` passed **678/678 unit + 232/232 integration = 910/910 PASS**.
 
-## Exact next task
+### Historical next-task instruction — INACTIVE
 On the next autonomous run, first verify CI for this final state-only main commit. If green, start exactly **B3.H2 Extraction retry/idempotency contract** from verified main. Do not start B3.H3/H4, B4 or frontend in this run.
+
+</details>
